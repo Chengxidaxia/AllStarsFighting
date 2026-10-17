@@ -63,7 +63,11 @@ export class Net {
     const base = location.pathname
       .replace(/\/[^/]*\.[^/]*$/, '')
       .replace(/\/+$/, '');
-    const url = `${proto}${location.host}${base}${this.url}`;
+    // 静态客户端 + 独立 WS 服务：js/config.js 里设置 window.__ALSF_WS_URL（如 wss://xxx.onrender.com/ws）
+    const explicit = typeof window !== 'undefined' && typeof window.__ALSF_WS_URL === 'string'
+      ? window.__ALSF_WS_URL.trim()
+      : '';
+    const url = explicit !== '' ? explicit : `${proto}${location.host}${base}${this.url}`;
     const sock = new WebSocket(url);
     this.sock = sock;
     sock.onopen = () => {

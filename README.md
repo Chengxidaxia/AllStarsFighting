@@ -275,46 +275,66 @@ node scripts\build-packages.mjs
 
 ---
 
-## 正式部署
+## 部署（Supabase + Render + 静态客户端）
 
-1. **构建与启动**
-   ```bat
-   npm ci
-   npm run build
-   set NODE_ENV=production
-   npm start
-   ```
-2. **端口**：游戏 `ALSF_PORT`（默认 24710）、管理端 `ALSF_ADMIN_PORT`（默认 24711，**无鉴权，勿对外**）。完整变量见 `.env.example`，复制为 `.env` 即自动读取。
-3. **反向代理**：Nginx 需同时转发 HTTP 与 WebSocket：
-   ```nginx
-   location /alsf/ {
-     proxy_pass http://127.0.0.1:24710/;
-     proxy_http_version 1.1;
-     proxy_set_header Upgrade $http_upgrade;
-     proxy_set_header Connection "upgrade";
-     proxy_set_header Host $host;
-   }
-   ```
-   或使用父级合集网关（`root/server.mjs`，24740，含账号会话与 `/alsf/` 准入）——**该网关不在本仓库**，单独部署时可忽略。
-4. **数据持久化**：`data/catalog.json`（管理端保存）与根站 `data/users.json` / `data/sessions.json` 需持久卷；`packages/*.zip` 随代码部署。
-5. **健康检查**：`GET /health` 返回 `{ ok, game, version, rooms, players, online }`。
-6. **安全**：管理端不随根入口暴露；公网只暴露游戏入口，管理端仅内网 / 本机访问。
-7. **后续（S8）**：Supabase Auth + Postgres 存内容与战绩；实时对局仍走自研 ws（Supabase 托管不了常驻 WS）。
+推荐拓扑（无需自备服务器）：
 
-### Render（WebSocket 托管）
+```
+静态客户端（Render Static Site / Cloudflare Pages）
+  ├─ 首页 home/
+  └─ ALSF 客户端 web/  ──wss──▶ Render Web Service（ALSF 对局引擎 + /ws）
+                                     └─ 战绩/资料 ──▶ Supabase Postgres
+Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
+```
 
-- 新建 **Web Service**（Node）：Build `npm ci && npm run build`，Start `npm start`。
-- Render 会注入 `PORT`；服务端**优先读 `PORT`**，其次 `ALSF_PORT`，最后 24710。
-- WebSocket 与 HTTP 同端口（`/ws`），Render Web Service 原生支持 WS。
-- 健康检查：`/health`；免费实例会休眠，首次连接有冷启动。
-- 仓库自带 `render.yaml` 蓝图（`NODE_VERSION=22`）；管理端在 `PORT+1`，Render 不对外暴露该端口，天然隔离。
+> **边界**：Supabase 不能托管**有状态的 WS 对局引擎**（只有 Auth / Postgres / 存储 / 无状态 Edge Functions，没有常驻 WS 进程）。实时对局必须跑在 Render（或同类 Web Service）；Supabase 负责账号、数据与素材。
 
-### Supabase（账号 + 数据库）
+### 1) Supabase
 
-- **Auth** 可替代根站自建账号（邮箱 / OAuth）；**Postgres** 存内容与战绩。
-- 接入时在 Render 面板配置（**勿提交真实值**）：`SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`SUPABASE_JWT_SECRET`。
-- 实时对局仍走 Render 上的自研 ws（Supabase 不托管常驻 WebSocket）。
-- 当前仓库是「可直接跑」版本；Supabase 登录 / 存档迁移属于下一步接入项（需你的项目 URL 与密钥）。
+- 新建项目，记下 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`SUPABASE_JWT_SECRET`。
+- Auth：开 Email（或 OAuth）；Site URL / Redirect URLs 填静态客户端域名。
+- Postgres：`profiles` / `matches` 等表 + RLS。
+- `SERVICE_ROLE_KEY` / `JWT_SECRET` **只放 Render 环境变量**，不要进仓库或前端。
+
+### 2) Render Web Service（对局 / WS）
+
+- 连本仓库：Build `npm ci --include=dev && npm run build`，Start `npm start`，Health `/health`。
+- Render 注入 `PORT`；服务端优先读 `PORT`，其次 `ALSF_PORT`，最后 24710。
+- WebSocket 与 HTTP 同端口（`/ws`）：`wss://<service>.onrender.com/ws`。
+- 环境变量：`NODE_ENV=production`、`SUPABASE_URL`、`SUPABASE_JWT_SECRET`、`SUPABASE_SERVICE_ROLE_KEY`。
+- 免费实例会休眠（冷启动 / WS 断），正式用建议付费实例或定时 ping 保活；`render.yaml` 已内置。
+
+### 3) 静态客户端
+
+- 把 `web/`（以及首页 `home/`）发布到 **Static Site**（Render Static / Cloudflare Pages / GitHub Pages）。
+- 编辑 `web/js/config.js`，把 WS 指向 Render：
+  ```js
+  window.__ALSF_WS_URL = 'wss://<your-service>.onrender.com/ws';
+  ```
+  同源部署（客户端由 Render 直接托管）时留空即可。
+- 首页若单独静态发布，游戏入口 `url` / `health` 要改成 Render 的绝对地址。
+
+### 4) 账号（Supabase Auth）
+
+- 客户端用 Supabase 登录，把 `session.access_token` 放进 `JOIN`；
+- Render 服务端用 `SUPABASE_JWT_SECRET` 校验，取 `email` / `user_metadata.name` 作为玩家名；无 token 回退访客名（现状）。
+- 战绩写 `matches`（服务端 service_role 或客户端 RLS）。
+- 当前仓库仍是「访客名可直接玩」版本；Supabase 登录属下一步接入（需项目 URL + anon key）。
+
+### 自建服务器（可选）
+
+- 同机部署：`npm run dev` / `npm start`，客户端与 WS 同源，`config.js` 留空。
+- Nginx 反代 WS：
+  ```nginx
+  location /alsf/ {
+    proxy_pass http://127.0.0.1:24710/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+  }
+  ```
+- 数据落盘：`data/catalog.json`、`packages/*.zip`；管理端 24711 仅内网。
 
 ---
 
