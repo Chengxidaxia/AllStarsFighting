@@ -237,7 +237,7 @@
         </label>
         <p class="dim" id="render-note" style="margin:0"></p>
         <label class="field">
-          <span>昵称（未登录时仅本地缓存；登录后以邮箱名前缀为准）</span>
+          <span>昵称（未登录时仅本地缓存；登录后可在顶栏「改名」随时更改）</span>
           <input id="opt-name" type="text" maxlength="16" autocomplete="off" />
         </label>
         <button id="btn-settings-reset" class="ghost-btn btn-sm" type="button" style="margin-top:10px;align-self:start">清除本地设置</button>
@@ -261,6 +261,20 @@
       <label class="afield"><span>密码</span><input id="auth-pass" type="password" maxlength="64" autocomplete="current-password" placeholder="至少 6 位" /></label>
       <button id="auth-submit" class="btn btn-primary auth-btn" type="button">登录</button>
       <p id="auth-msg" class="auth-msg"></p>
+    </div>
+  </div>
+
+  <!-- 更改昵称（登录态顶栏「改名」入口；存 Supabase user_metadata，跨设备生效） -->
+  <div id="rename-modal" class="auth-modal" hidden>
+    <div class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="rename-title">
+      <div class="auth-head">
+        <strong id="rename-title">更改昵称</strong>
+        <button id="rename-close" class="modal-x" type="button" aria-label="关闭">×</button>
+      </div>
+      <p class="auth-hint">昵称显示在顶栏与对局中，2–16 个字符（中英文、数字、- _），保存后跟随账号。</p>
+      <label class="afield"><span>新昵称</span><input id="rename-input" type="text" maxlength="16" autocomplete="off" /></label>
+      <button id="rename-submit" class="btn btn-primary auth-btn" type="button">保存</button>
+      <p id="rename-msg" class="auth-msg"></p>
     </div>
   </div>
 
