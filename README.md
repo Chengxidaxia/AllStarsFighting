@@ -229,11 +229,25 @@ node scripts\build-packages.mjs
 
 会扫描 `packages-src/<name>/` 下所有文件，递归打包为 `packages/<name>.zip`（零依赖 store 方式）。
 
+### Supabase 存储桶（云端数据包）
+
+桶**根目录**扫描：每个 **文件夹** = 一个数据包；`.pack`（**推荐**）或 `.zip` 也是一个数据包；根目录的 `catalog.json`（合并目录）可直接用。
+
+- 上传：`node scripts/upload-pack.mjs`（读取上一级 `token.env` 的 `ProjectURL` / `Secretkey` / `Bucketname`，把 `packages-src/system` 传到 `system/`）。
+- 桶需 **public**（Storage → Make public），浏览器才能读。
+- 若要 **文件夹 / zip 扫描**（依赖 `list`），还需给 `storage.objects` 加匿名 SELECT 策略：
+  ```sql
+  create policy "datapack public read" on storage.objects for select using (bucket_id = 'datapack');
+  ```
+  不加策略也能用根 `catalog.json`（public 可直接下载，不需要 `list`）。
+- ⚠️ **IDM 会拦截 `.zip`**：桶里不要放 `.zip`；用文件夹、根 `catalog.json`，或把 zip 改名 `.pack`（loader 按 PK 头识别，不认后缀）。
+- 本地调试：`npm run build:web` 会把当前包导出 `web/pack/catalog.json`，并生成 `web/js/config.local.js`（读 `token.env`，只含 publishable key，已 gitignore）。
+
 ---
 
 ## 管理端
 
-独立端口（默认 `ALSF_ADMIN_PORT` = 游戏端口 + 1），**无鉴权**，只应在本机 / 内网使用；根入口不暴露（网关对 `/alsf/admin` 返回 404）。
+独立端口（默认 `ALSF_ADMIN_PORT` = 游戏端口 + 1），**无鉴权**，默认只绑 **`127.0.0.1`**（`ALSF_ADMIN_HOST`），不对外；根入口不暴露（网关对 `/alsf/admin` 返回 404）。
 
 - 左侧分「卡牌 / 英雄 / 地图」，右侧可视化表单；`JSON 视图` 可手改完整对象。
 - 卡牌效果可用「op 下拉 + ＋加一条」逐条编辑（伤害 / 回血 / 状态 / 位移 / 抽牌…）。
@@ -300,6 +314,7 @@ Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
 
 - 连本仓库：Build `npm ci --include=dev && npm run build`，Start `npm start`，Health `/health`。
 - Render 注入 `PORT`；服务端优先读 `PORT`，其次 `ALSF_PORT`，最后 24710。
+- **只暴露游戏端口**：Render 只路由 `PORT`；管理端绑 `127.0.0.1:PORT+1`，不对外；若前面还有网关，后端设 `ALSF_HOST=127.0.0.1`。
 - WebSocket 与 HTTP 同端口（`/ws`）：`wss://<service>.onrender.com/ws`。
 - 环境变量：`NODE_ENV=production`、`SUPABASE_URL`、`SUPABASE_JWT_SECRET`、`SUPABASE_SERVICE_ROLE_KEY`。
 - 免费实例会休眠（冷启动 / WS 断），正式用建议付费实例或定时 ping 保活；`render.yaml` 已内置。
@@ -334,7 +349,7 @@ Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
     proxy_set_header Host $host;
   }
   ```
-- 数据落盘：`data/catalog.json`、`packages/*.zip`；管理端 24711 仅内网。
+- 数据落盘：`data/catalog.json`、`packages/*.zip`；管理端默认只绑 `127.0.0.1`，不对外。
 
 ---
 

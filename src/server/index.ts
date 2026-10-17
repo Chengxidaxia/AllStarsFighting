@@ -44,6 +44,8 @@ const server = createServer((req, res) => {
 // ── 独立管理端端口：只服务 /admin/*（页面 + API），与游戏端口隔离 ──
 
 const ADMIN_PORT = Number(process.env.ALSF_ADMIN_PORT ?? config.port + 1);
+// 管理端只绑本机，避免内部/管理端口对外暴露（对外只留游戏端口）
+const ADMIN_HOST = process.env.ALSF_ADMIN_HOST ?? '127.0.0.1';
 const adminServer = createServer((req, res) => {
   const p = ((req.url ?? '').split('?')[0]) ?? '';
   if (p.startsWith('/admin/api/')) {
@@ -106,8 +108,8 @@ server.listen(config.port, config.host, () => {
   log.info(`协议版本 ${PROTOCOL_VERSION}；游戏大厅模式：${MATCH_MODES.join(' / ')}`);
 });
 
-adminServer.listen(ADMIN_PORT, config.host, () => {
-  log.info(`管理端（无鉴权）→ http://${config.host === '0.0.0.0' ? '127.0.0.1' : config.host}:${ADMIN_PORT}/admin/`);
+adminServer.listen(ADMIN_PORT, ADMIN_HOST, () => {
+  log.info(`管理端（无鉴权，仅 ${ADMIN_HOST}）→ http://${ADMIN_HOST === '0.0.0.0' ? '127.0.0.1' : ADMIN_HOST}:${ADMIN_PORT}/admin/`);
 });
 
 for (const sig of ['SIGINT', 'SIGTERM'] as const) {

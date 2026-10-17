@@ -4,6 +4,10 @@ dist-test/
 .m2/
 data/
 packages/*.zip
+web/pack/
+web/js/engine.js
+web/js/config.local.js
+token.env
 scripts/_*
 docs/preview/*.png
 docs/旧*.csv

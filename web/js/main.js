@@ -4,6 +4,8 @@
  */
 
 import { Net, MSG, MODES } from './net.js';
+import { createLocalNet } from './net-local.js';
+import { createAuth } from './auth.js';
 import {
   S, resetMatch, myHero, isMyTurn, reachableTiles, teamColor,
   cardKindLabel, fmtTime,
@@ -11,7 +13,15 @@ import {
 import { initBoard, pickTile, drawSpawnPreview, pickSpawnTile } from './render.js';
 
 const $ = (id) => document.getElementById(id);
-const net = new Net('/ws');
+// 房主权威模式：?mode=host / ?mode=guest（或 config 里 __ALSF_MODE）；?mode=ws 强制走 WS 服务端
+const MODE = (() => {
+  const m = (new URLSearchParams(location.search).get('mode') || window.__ALSF_MODE || '').toLowerCase();
+  return m === 'ws' ? '' : m;
+})();
+const LOCAL_NET = MODE === 'host' || MODE === 'guest';
+const net = LOCAL_NET ? createLocalNet(MODE) : new Net('/ws');
+// 登录 / 注册（部署版 Supabase 邮箱认证；?auth=off 或无配置时直接进）
+const auth = createAuth();
 
 const el = {
   screens: {
@@ -28,6 +38,7 @@ const el = {
   roomTitle: $('room-title'), roomModeTag: $('room-mode-tag'), roomHost: $('room-host'),
   teamList: $('team-list'), roomStatus: $('room-status'),
   btnStart: $('btn-start'), btnLeave: $('btn-leave'), btnLobbyBack: $('btn-lobby-back'),
+  btnInvite: $('btn-invite'),
   heroGrid: $('hero-grid'), heroTimer: $('hero-timer'), heroCount: $('hero-count'),
   spawnCanvas: $('spawn-canvas'), spawnTimer: $('spawn-timer'),
   board: $('board'), boardToast: $('board-toast'),
@@ -228,6 +239,7 @@ net.on(MSG.RESULT, (d) => {
 });
 
 net.on(MSG.ERROR, (d) => toast(d.msg ?? '操作被拒绝', true));
+net.on('ANTICHEAT', (d) => toast('⚠️ ' + (d.msg ?? '检测到异常'), true));
 net.on(MSG.PONG, () => { /* 服务端心跳回应 */ });
 // 客户端必须回应服务端的 MSG.PING，否则服务端判定心跳超时 → 断连 → 重连被当新玩家
 net.on(MSG.PING, () => net.send(MSG.PONG, { ts: Date.now() }));
@@ -272,7 +284,9 @@ function populateMapSelect() {
 function renderLobby() {
   el.lobbyCount.textContent = `${S.lobbyRooms.length} 个房间`;
   if (S.lobbyRooms.length === 0) {
-    el.roomList.innerHTML = '<div class="room-empty">暂无房间，创建一个吧</div>';
+    el.roomList.innerHTML = MODE === 'guest'
+      ? '<div class="room-empty">暂无房间 —— 找房主要一个邀请链接</div>'
+      : '<div class="room-empty">暂无房间，创建一个吧</div>';
     return;
   }
   el.roomList.innerHTML = S.lobbyRooms.map((r) => {
@@ -974,17 +988,34 @@ if (el.btnSettingsReset !== null) el.btnSettingsReset.addEventListener('click', 
   toast('已清除本地设置');
 });
 
-// ── 自动进入：取账号名号直接连，不再弹名号设定界面 ──
-// 根站(/alsf/ 经网关)一定有 /api/me；直连游戏端口时没有，回退到本地缓存或访客名。
+// ── 自动进入：先过登录门（部署版），名号取账号，再连网 ──
+// 根站(/alsf/ 经网关)有 /api/me；独立部署用 Supabase 账号；都没有则本地缓存/访客名。
 (async () => {
-  let name = '';
-  try {
-    const res = await fetch('/api/me', { credentials: 'same-origin' });
-    if (res.ok) {
-      const d = await res.json().catch(() => null);
-      if (d && typeof d.user === 'string' && d.user) name = d.user;
+  if (auth.enabled) {
+    await auth.ready;
+    if (auth.user === null) {
+      el.joinStatus.textContent = '登录后即可进入游戏';
+      if ($('btn-gate') !== null) {
+        $('btn-gate').hidden = false;
+        $('btn-gate').addEventListener('click', () => auth.openModal('登录后即可进入游戏'));
+      }
+      const needLogin = new URLSearchParams(location.search).get('login') === '1';
+      auth.openModal(needLogin ? '请先登录，再进入游戏' : '登录后即可进入游戏');
+      await auth.waitLogin(); // 登录成功后继续往下
     }
-  } catch { /* 独立部署：无根站接口 */ }
+  }
+
+  let name = '';
+  if (auth.enabled && auth.user !== null) name = auth.displayName();
+  if (!name && !auth.enabled) {
+    try {
+      const res = await fetch('/api/me', { credentials: 'same-origin' });
+      if (res.ok) {
+        const d = await res.json().catch(() => null);
+        if (d && typeof d.user === 'string' && d.user) name = d.user;
+      }
+    } catch { /* 独立部署：无根站接口 */ }
+  }
   if (!name) {
     try { name = localStorage.getItem('alsf_name') || ''; } catch { /* */ }
   }
@@ -993,6 +1024,30 @@ if (el.btnSettingsReset !== null) el.btnSettingsReset.addEventListener('click', 
   el.joinStatus.textContent = '正在进入游戏大厅…';
   net.connect(name); // _open 事件触发后会自动 hello()
 })();
+
+// 登出：回到登录门（重载，丢掉半截会话状态）
+let lastAuthUid = 'pending';
+auth.onChange((u) => {
+  if (lastAuthUid === 'pending') { lastAuthUid = u === null ? null : u.id; return; }
+  if (lastAuthUid !== null && u === null) location.reload();
+  lastAuthUid = u === null ? null : u.id;
+});
+
+// 邀请链接（房主权威模式：把 ?mode=guest&room=xxx 发给别人）
+if (LOCAL_NET && el.btnInvite !== null) {
+  el.btnInvite.hidden = false;
+  el.btnInvite.addEventListener('click', async () => {
+    const room = S.room?.roomId;
+    if (!room) { toast('先进房间再邀请'); return; }
+    const url = location.origin + location.pathname + '?mode=guest&room=' + encodeURIComponent(room);
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('邀请链接已复制，发给队友吧');
+    } catch {
+      toast('复制失败，链接：' + url);
+    }
+  });
+}
 
 // E2E 钩子
 window.__alsf = {

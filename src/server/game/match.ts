@@ -117,6 +117,8 @@ export interface MatchOpts {
   mode: MatchMode;
   hostId: string;
   mapId?: string;
+  /** 可复现种子（房主权威/多端复算时由房主下发；缺省随机）。 */
+  seed?: number;
   cfg: {
     phaseTimeoutMs: number;
     turnTimeoutMs: number;
@@ -172,7 +174,7 @@ export class Match {
     const map = getCatalog().maps.find((m) => m.id === opts.mapId) ?? getCatalog().maps[0]!;
     this.mapDef = map;
     this.grid = new Grid(map);
-    this.seed = randomSeed();
+    this.seed = opts.seed ?? randomSeed();
     this.rng = createRng(this.seed);
   }
 

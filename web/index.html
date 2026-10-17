@@ -20,6 +20,7 @@
       </div>
       <p class="tagline">一副共通牌堆 · 一张方格地图 · 活到最后</p>
       <p id="join-status" class="status">正在进入游戏大厅…</p>
+      <button id="btn-gate" class="btn btn-primary" type="button" hidden style="margin-top:12px">登录 / 注册</button>
     </div>
   </section>
 
@@ -32,6 +33,7 @@
       </div>
       <div class="topbar-right">
         <span id="lobby-me" class="me-chip"></span>
+        <span class="auth-slot"></span>
         <button id="btn-settings" class="ghost-btn btn-sm" type="button">设置</button>
       </div>
     </header>
@@ -73,6 +75,8 @@
       </div>
       <div class="topbar-right">
         <span id="room-host" class="dim"></span>
+        <button id="btn-invite" class="ghost-btn btn-sm" type="button" hidden>复制邀请链接</button>
+        <span class="auth-slot"></span>
       </div>
     </header>
     <div class="room-body">
@@ -148,6 +152,7 @@
       <div class="topbar-right">
         <span id="battle-me" class="me-chip"></span>
         <span id="battle-deck" class="dim"></span>
+        <span class="auth-slot"></span>
         <button id="btn-chat" class="ghost-btn btn-sm" type="button">聊天</button>
       </div>
     </header>
@@ -232,11 +237,30 @@
         </label>
         <p class="dim" id="render-note" style="margin:0"></p>
         <label class="field">
-          <span>昵称（仅本地缓存，登录时以账号名为准）</span>
+          <span>昵称（未登录时仅本地缓存；登录后以邮箱名前缀为准）</span>
           <input id="opt-name" type="text" maxlength="16" autocomplete="off" />
         </label>
         <button id="btn-settings-reset" class="ghost-btn btn-sm" type="button" style="margin-top:10px;align-self:start">清除本地设置</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 登录 / 注册模态（照仿首页：顶栏入口 → 模态面板；后端 Supabase 邮箱认证） -->
+  <div id="auth-modal" class="auth-modal" hidden>
+    <div class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="auth-head">
+        <strong id="auth-title">登录 ALSF 账号</strong>
+        <button id="auth-close" class="modal-x" type="button" aria-label="关闭">×</button>
+      </div>
+      <p id="auth-hint" class="auth-hint" hidden></p>
+      <div class="auth-tabs">
+        <button id="authtab-login" class="authtab active" type="button">登录</button>
+        <button id="authtab-register" class="authtab" type="button">注册</button>
+      </div>
+      <label class="afield"><span>邮箱</span><input id="auth-email" type="email" maxlength="64" autocomplete="username" placeholder="you@example.com" /></label>
+      <label class="afield"><span>密码</span><input id="auth-pass" type="password" maxlength="64" autocomplete="current-password" placeholder="至少 6 位" /></label>
+      <button id="auth-submit" class="btn btn-primary auth-btn" type="button">登录</button>
+      <p id="auth-msg" class="auth-msg"></p>
     </div>
   </div>
 
@@ -267,6 +291,7 @@
   <div id="rotate-hint" class="rotate-hint" hidden>横屏体验更佳</div>
 
   <script src="js/config.js"></script>
+  <script src="js/config.local.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
