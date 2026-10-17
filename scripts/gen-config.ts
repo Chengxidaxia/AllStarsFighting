@@ -22,9 +22,11 @@ const get = (k: string): string => {
 
 const url = get('ProjectURL');
 const key = get('Publishablekey') || get('AnonKey') || get('SUPABASE_ANON_KEY');
-const bucket = get('Bucketname') || 'datapack';
+const bucket = get('Bucketname') || 'datapacks';
 const mode = get('ALSF_MODE');
 const safeMode = mode === 'host' || mode === 'guest' ? mode : '';
+const auth = get('ALSF_AUTH');
+const safeAuth = auth === 'on' || auth === 'off' ? auth : '';
 
 const lines = [
   '/* 由 scripts/gen-config.ts 从 token.env 生成（gitignored），只含 publishable/anon key。 */',
@@ -33,5 +35,6 @@ const lines = [
   `window.__ALSF_PACK_BUCKET = ${JSON.stringify(bucket)};`,
   `window.__ALSF_MODE = ${JSON.stringify(safeMode)};`,
 ];
+if (safeAuth) lines.push(`window.__ALSF_AUTH = ${JSON.stringify(safeAuth)};`);
 writeFileSync('web/js/config.local.js', lines.join('\n') + '\n');
-console.log(`[web] config.local.js: url=${url ? 'set' : 'empty'} bucket=${bucket} mode=${safeMode || 'ws'}`);
+console.log(`[web] config.local.js: url=${url ? 'set' : 'empty'} bucket=${bucket} mode=${safeMode || 'ws'} auth=${safeAuth || 'off'}`);
