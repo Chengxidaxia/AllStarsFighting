@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#0b0716" />
+  <meta name="description" content="ALSF 全冥星大坐站 —— 回合制卡牌对战" />
+  <title>ALSF · 全冥星大坐站</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%238b5cf6'/%3E%3Ctext x='16' y='22' font-size='16' font-family='sans-serif' font-weight='bold' text-anchor='middle' fill='white'%3EA%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <!-- ═══ 屏幕 1：进入（加载中，名号自动取账号，不再手动设定） ═══ -->
+  <section id="scr-join" class="screen active">
+    <div class="panel join-panel">
+      <div class="logo">
+        <span class="logo-mark">ALSF</span>
+        <h1>全冥星大坐站</h1>
+      </div>
+      <p class="tagline">一副共通牌堆 · 一张方格地图 · 活到最后</p>
+      <p id="join-status" class="status">正在进入游戏大厅…</p>
+      <button id="btn-gate" class="btn btn-primary" type="button" hidden style="margin-top:12px">登录 / 注册</button>
+    </div>
+  </section>
+
+  <!-- ═══ 屏幕 2：游戏大厅 ═══ -->
+  <section id="scr-lobby" class="screen">
+    <header class="topbar outside">
+      <div class="topbar-left">
+        <span class="brand">ALSF</span>
+        <h2>游戏大厅</h2>
+      </div>
+      <div class="topbar-right">
+        <span id="lobby-me" class="me-chip"></span>
+        <span class="auth-slot"></span>
+        <button id="btn-settings" class="ghost-btn btn-sm" type="button">设置</button>
+      </div>
+    </header>
+    <div class="lobby-body">
+      <aside class="lobby-side outside">
+        <h3>创建房间</h3>
+        <label class="field">
+          <span>房间名</span>
+          <input id="room-name" type="text" maxlength="16" placeholder="例如：巅峰死斗场" autocomplete="off" />
+        </label>
+        <label class="field">
+          <span>地图</span>
+          <select id="room-map"></select>
+        </label>
+        <label class="field">
+          <span>对局模式</span>
+          <select id="room-mode"></select>
+        </label>
+        <p id="mode-hint" class="mode-hint"></p>
+        <button id="btn-create" class="btn btn-primary" type="button">创建并进入</button>
+      </aside>
+      <main class="lobby-main">
+        <div class="lobby-main-head">
+          <h3>房间列表</h3>
+          <span id="lobby-count" class="dim"></span>
+        </div>
+        <div id="room-list" class="room-list"></div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ═══ 屏幕 3：房间 / 等待房 ═══ -->
+  <section id="scr-room" class="screen">
+    <header class="topbar outside">
+      <div class="topbar-left">
+        <button id="btn-lobby-back" class="ghost-btn" type="button">← 游戏大厅</button>
+        <h2 id="room-title">房间</h2>
+        <span id="room-mode-tag" class="tag"></span>
+      </div>
+      <div class="topbar-right">
+        <span id="room-host" class="dim"></span>
+        <button id="btn-invite" class="ghost-btn btn-sm" type="button" hidden>复制邀请链接</button>
+        <span class="auth-slot"></span>
+      </div>
+    </header>
+    <div class="room-body">
+      <div class="room-teams outside">
+        <h3>队伍（点击加入 / 切换）</h3>
+        <div id="team-list" class="team-list"></div>
+      </div>
+      <div class="room-actions outside">
+        <p id="room-status" class="room-status">等待玩家加入…</p>
+        <button id="btn-start" class="btn btn-primary btn-lg" type="button" hidden>开始对局</button>
+        <button id="btn-leave" class="ghost-btn" type="button">离开房间</button>
+      </div>
+      <aside class="room-chat outside">
+        <div class="chat-tabs">
+          <button id="rtab-all" class="chat-tab active" type="button">全体</button>
+          <button id="rtab-team" class="chat-tab" type="button">队伍</button>
+          <button id="rtab-log" class="chat-tab" type="button">战报</button>
+        </div>
+        <div id="rchat-list" class="chat-list"></div>
+        <form id="rchat-form" class="chat-form">
+          <input id="rchat-input" type="text" maxlength="200" placeholder="说点什么…" autocomplete="off" />
+          <button class="btn btn-sm" type="submit">发送</button>
+        </form>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ═══ 屏幕 4：选英雄 ═══ -->
+  <section id="scr-hero" class="screen">
+    <header class="topbar outside">
+      <div class="topbar-left">
+        <h2>选择你的英雄</h2>
+        <span id="hero-timer" class="timer"></span>
+      </div>
+      <div class="topbar-right"><span id="hero-count" class="dim"></span></div>
+    </header>
+    <div class="pick-layout">
+      <div class="battle-board ingame pick-board">
+        <div id="hero-grid" class="hero-grid"></div>
+        <p class="zone-label">游戏内 · 选英雄</p>
+      </div>
+    </div>
+    <p class="screen-hint">不可与他人重复；超时将自动分配。</p>
+  </section>
+
+  <!-- ═══ 屏幕 5：选出生点 ═══ -->
+  <section id="scr-spawn" class="screen">
+    <header class="topbar outside">
+      <div class="topbar-left">
+        <h2>选择出生点</h2>
+        <span id="spawn-timer" class="timer"></span>
+      </div>
+    </header>
+    <div class="pick-layout">
+      <div class="battle-board ingame pick-board">
+        <canvas id="spawn-canvas"></canvas>
+        <p class="zone-label">游戏内 · 地图</p>
+      </div>
+    </div>
+    <p class="screen-hint">点击高亮格子落位；不可与他人重复。</p>
+  </section>
+
+  <!-- ═══ 屏幕 6：对战 ═══ -->
+  <section id="scr-battle" class="screen">
+    <!-- 游戏外：信息头 -->
+    <header class="topbar battle-top outside">
+      <div class="topbar-left">
+        <button id="btn-attrs" class="btn btn-sm" type="button">角色属性</button>
+        <span class="brand">ALSF</span>
+        <span id="battle-turn" class="turn-chip">—</span>
+        <span id="battle-timer" class="timer"></span>
+      </div>
+      <div class="topbar-right">
+        <span id="battle-me" class="me-chip"></span>
+        <span id="battle-deck" class="dim"></span>
+        <span class="auth-slot"></span>
+        <button id="btn-chat" class="ghost-btn btn-sm" type="button">聊天</button>
+      </div>
+    </header>
+
+    <div class="battle-body">
+      <!-- 游戏外：牌堆（地图左侧） -->
+      <aside class="deck-col outside">
+        <div class="pile">
+          <div class="pile-card back"></div>
+          <span id="deck-count" class="pile-count">0</span>
+          <span class="pile-label">主牌堆</span>
+        </div>
+        <div class="pile">
+          <div id="discard-card" class="pile-card discard"><span class="dim">—</span></div>
+          <span id="discard-count" class="pile-count">0</span>
+          <span class="pile-label">弃牌堆</span>
+        </div>
+      </aside>
+      <!-- 游戏内：棋盘 -->
+      <div class="battle-board ingame">
+        <canvas id="board"></canvas>
+        <div id="board-toast" class="board-toast" hidden></div>
+        <p class="zone-label">游戏内 · 战场</p>
+      </div>
+
+      <!-- 侧边：全场血量竖排（地图与聊天之间） -->
+      <aside id="battle-side" class="battle-side outside">
+        <div id="hp-strip" class="hp-strip"></div>
+      </aside>
+
+      <!-- 游戏外：聊天 / 日志 -->
+      <aside id="chat-panel" class="chat-panel outside">
+        <div class="chat-tabs">
+          <button id="tab-all" class="chat-tab active" type="button">全体</button>
+          <button id="tab-team" class="chat-tab" type="button">队伍</button>
+          <button id="tab-log" class="chat-tab" type="button">战报</button>
+        </div>
+        <div id="chat-list" class="chat-list"></div>
+        <form id="chat-form" class="chat-form">
+          <input id="chat-input" type="text" maxlength="200" placeholder="说点什么…" autocomplete="off" />
+          <button class="btn btn-sm" type="submit">发送</button>
+        </form>
+      </aside>
+    </div>
+
+    <!-- 游戏内：手牌 + 操作 -->
+    <footer class="battle-hand ingame">
+      <div class="hand-meta">
+        <span id="hand-hint" class="dim">—</span>
+        <button id="btn-endturn" class="btn btn-primary" type="button" disabled>结束回合</button>
+        <button id="btn-cancel" class="ghost-btn btn-sm" type="button" hidden>取消选牌</button>
+      </div>
+      <div id="hand" class="hand"></div>
+    </footer>
+  </section>
+
+  <!-- 选牌面板（数据包 ui:pickCard 触发） -->
+  <div id="pick-modal" class="attrs-modal" hidden>
+    <div class="attrs-panel ingame">
+      <div class="attrs-head">
+        <strong>请选择一张牌</strong>
+        <button id="btn-pick-close" class="btn btn-sm" type="button">取消</button>
+      </div>
+      <div id="pick-body" class="attrs-body pick-body"></div>
+    </div>
+  </div>
+
+  <!-- 个人设置（大厅顶栏「设置」按钮） -->
+  <div id="settings-modal" class="attrs-modal" hidden>
+    <div class="attrs-panel" style="width:min(440px,92vw)">
+      <div class="attrs-head">
+        <strong>个人设置</strong>
+        <button id="btn-settings-close" class="btn btn-sm" type="button">关闭</button>
+      </div>
+      <div class="attrs-body" style="grid-template-columns:1fr">
+        <label class="field">
+          <span>渲染方式</span>
+          <select id="opt-render">
+            <option value="canvas">Canvas2D（默认）</option>
+            <option value="webgl">WebGL（实验）</option>
+          </select>
+        </label>
+        <p class="dim" id="render-note" style="margin:0"></p>
+        <label class="field">
+          <span>昵称（未登录时仅本地缓存；登录后以邮箱名前缀为准）</span>
+          <input id="opt-name" type="text" maxlength="16" autocomplete="off" />
+        </label>
+        <button id="btn-settings-reset" class="ghost-btn btn-sm" type="button" style="margin-top:10px;align-self:start">清除本地设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 登录 / 注册模态（照仿首页：顶栏入口 → 模态面板；后端 Supabase 邮箱认证） -->
+  <div id="auth-modal" class="auth-modal" hidden>
+    <div class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+      <div class="auth-head">
+        <strong id="auth-title">登录 ALSF 账号</strong>
+        <button id="auth-close" class="modal-x" type="button" aria-label="关闭">×</button>
+      </div>
+      <p id="auth-hint" class="auth-hint" hidden></p>
+      <div class="auth-tabs">
+        <button id="authtab-login" class="authtab active" type="button">登录</button>
+        <button id="authtab-register" class="authtab" type="button">注册</button>
+      </div>
+      <label class="afield"><span>邮箱</span><input id="auth-email" type="email" maxlength="64" autocomplete="username" placeholder="you@example.com" /></label>
+      <label class="afield"><span>密码</span><input id="auth-pass" type="password" maxlength="64" autocomplete="current-password" placeholder="至少 6 位" /></label>
+      <button id="auth-submit" class="btn btn-primary auth-btn" type="button">登录</button>
+      <p id="auth-msg" class="auth-msg"></p>
+    </div>
+  </div>
+
+  <!-- 角色属性面板（顶栏「角色属性」按钮：从左侧滑出） -->
+  <div id="attrs-modal" class="drawer-modal" hidden>
+    <div class="drawer-panel ingame">
+      <div class="attrs-head">
+        <strong>全部角色属性</strong>
+        <button id="btn-attrs-close" class="btn btn-sm" type="button">关闭</button>
+      </div>
+      <div id="attrs-body" class="attrs-body"></div>
+    </div>
+  </div>
+
+  <!-- ═══ 屏幕 7：结算 ═══ -->
+  <section id="scr-result" class="screen">
+    <div class="panel result-panel">
+      <h2 id="result-title">对局结束</h2>
+      <div id="result-standings" class="standings"></div>
+      <div class="result-actions">
+        <button id="btn-restart" class="btn btn-primary" type="button" hidden>再来一局</button>
+        <button id="btn-result-lobby" class="ghost-btn" type="button">返回游戏大厅</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="rotate-hint" class="rotate-hint" hidden>横屏体验更佳</div>
+
+  <script src="js/config.js"></script>
+  <script src="js/config.local.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
