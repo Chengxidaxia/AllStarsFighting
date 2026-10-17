@@ -10,10 +10,11 @@
   },
   "scripts": {
     "dev": "tsx watch src/server/index.ts",
-    "predev": "npm run build:web",
+    "predev": "npm run build:packages && npm run build:web",
     "start": "node dist/server/index.js",
     "build": "npm run build:web && tsc -p tsconfig.json",
-    "build:web": "tsx scripts/gen-catalog.ts && tsx scripts/gen-config.ts && node scripts/build-web.mjs",
+    "build:web": "tsx scripts/gen-config.ts && node scripts/build-web.mjs",
+    "build:packages": "node scripts/build-packages.mjs",
     "postinstall": "node scripts/build-packages.mjs",
     "prestart": "node scripts/build-packages.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",

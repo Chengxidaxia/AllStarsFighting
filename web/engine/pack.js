@@ -1,8 +1,9 @@
 /**
  * 数据包加载（浏览器端）：
- *   - Supabase Storage 桶 **根目录** 扫描：每个文件夹 = 一个数据包；也识别 `.zip`（单个 zip 也是数据包）。
+ *   - 配了 Supabase：扫描 Storage 桶 **datapacks 根目录**——每个文件夹 = 一个数据包；也识别 zip（.zip/.pack/.alsfpack）。
+ *   - 没配 Supabase：读同源 `/datapacks/` 目录（本地运行时的数据包来源，由服务端 datapacks handler 提供）。
  *   - 每个包内：manifest.json + cards/*.json + stars/*.json + maps/*.json（+ 可选 js/、assets/）。
- *   - 没配 Supabase 时回退本地 web/pack/catalog.json。
+ *   - zip 一律下载到内存解包，不落硬盘。
  *
  * 映射逻辑与服务端 src/server/data/packages.ts 保持一致。
  */
@@ -262,9 +263,13 @@ async function loadZipPack(client, path) {
   const raw = await client.getBytes(path);
   if (raw.length < 4 || raw[0] !== 0x50 || raw[1] !== 0x4b) throw new Error('不是 zip（缺少 PK 头）');
   const files = await unzip(raw);
-  const manifestRaw = files.get('manifest.json');
-  if (manifestRaw === undefined) throw new Error('zip 缺少 manifest.json: ' + path);
-  const manifest = JSON.parse(utf8(manifestRaw));
+  if (!files.has('manifest.json')) throw new Error('zip 缺少 manifest.json: ' + path);
+  return packFromZipFiles(files);
+}
+
+/** zip 内存解包后的公共解析（桶 zip 与本地 zip 共用）。 */
+function packFromZipFiles(files) {
+  const manifest = JSON.parse(utf8(files.get('manifest.json')));
   const jsFiles = new Map();
   for (const [name, data] of files) {
     if (!name.endsWith('.js')) continue;
@@ -272,37 +277,30 @@ async function loadZipPack(client, path) {
     jsFiles.set(name.split('/').pop(), body);
     jsFiles.set(name, body);
   }
-  const read = (prefix) => {
+  const read = (dir) => {
     const out = [];
     for (const [name, data] of files) {
-      if (!name.startsWith(prefix) || !name.endsWith('.json')) continue;
+      const sub = name.startsWith(dir + '/') ? name.slice(dir.length + 1) : null;
+      if (sub === null || sub.indexOf('/') !== -1 || !name.endsWith('.json')) continue;
       const parsed = JSON.parse(utf8(data));
       if (Array.isArray(parsed)) out.push(...parsed);
       else if (parsed !== null && typeof parsed === 'object') out.push(parsed);
     }
     return out;
   };
-  return mapPack(manifest, read('stars/'), read('cards/'), read('maps/'), jsFiles);
+  return mapPack(manifest, read('stars'), read('cards'), read('maps'), jsFiles);
 }
 
-/** 扫描桶根：文件夹 = 数据包；.zip = 数据包；若根有 catalog.json 直接当合并目录。 */
+/** 扫描桶根：文件夹 = 数据包；.zip/.pack/.alsfpack = 数据包。 */
 async function scanBucket(url, anonKey, bucket) {
   const client = makeClient(url, anonKey, bucket);
   let root = [];
   try {
     root = await client.list('');
   } catch (err) {
-    console.warn('[pack] list 失败，尝试根 catalog.json：' + String(err));
+    console.warn('[pack] 桶根 list 失败：' + String(err));
   }
   const names = root.filter((e) => !e.name.startsWith('.'));
-  const catalogEntry = names.find((e) => e.name === 'catalog.json' && !isFolder(e));
-  if (catalogEntry !== undefined) {
-    return JSON.parse(utf8(await client.getBytes('catalog.json')));
-  }
-  // 桶是 public 但 list 被 RLS 拦住（返回空）时，根目录 catalog.json 仍可直接下载
-  if (names.length === 0) {
-    try { return JSON.parse(utf8(await client.getBytes('catalog.json'))); } catch { /* 无根目录 catalog */ }
-  }
   const packs = [];
   for (const e of names) {
     if (isFolder(e)) {
@@ -310,17 +308,77 @@ async function scanBucket(url, anonKey, bucket) {
       catch (err) { console.warn(`[pack] 文件夹包 ${e.name} 加载失败：${String(err)}`); }
     } else {
       const lower = e.name.toLowerCase();
-      // .zip 容易被 IDM 拦截；推荐用 .pack/.alsfpack，或直接用文件夹/根 catalog.json
+      // .zip 容易被 IDM 拦截；推荐用 .pack/.alsfpack，或直接用文件夹
       if (lower.endsWith('.zip') || lower.endsWith('.pack') || lower.endsWith('.alsfpack')) {
         try { packs.push(await loadZipPack(client, e.name)); }
         catch (err) { console.warn(`[pack] zip 包 ${e.name} 加载失败：${String(err)}`); }
       }
     }
   }
-  if (packs.length === 0) {
-    try { return JSON.parse(utf8(await client.getBytes('catalog.json'))); } catch { /* ignore */ }
-  }
   if (packs.length === 0) throw new Error(`存储桶 ${bucket} 根目录没有可识别的数据包（文件夹 / .pack / .zip）`);
+  return mergePacks(packs);
+}
+
+// ── 本地 /datapacks/ 目录（与桶同构：文件夹包 + zip 包，zip 内存解包）──
+
+async function fetchBytes(url) {
+  const res = await fetch(url, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(url + ' → ' + res.status);
+  return new Uint8Array(await res.arrayBuffer());
+}
+
+async function loadLocalFolderPack(name) {
+  const res = await fetch(`datapacks/${encodeURIComponent(name)}/?list=1`, { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`读取 ${name} 清单失败 → ${res.status}`);
+  const { files } = await res.json();
+  const base = `datapacks/${name}/`;
+  const jsFiles = new Map();
+  for (const rel of files) {
+    if (!rel.endsWith('.js')) continue;
+    const body = utf8(await fetchBytes(base + rel));
+    jsFiles.set(rel.split('/').pop(), body);
+    jsFiles.set(rel, body);
+  }
+  const readJson = async (dir) => {
+    const out = [];
+    for (const rel of files) {
+      const sub = rel.startsWith(dir + '/') ? rel.slice(dir.length + 1) : null;
+      if (sub === null || sub.indexOf('/') !== -1 || !rel.endsWith('.json')) continue;
+      const parsed = JSON.parse(utf8(await fetchBytes(base + rel)));
+      if (Array.isArray(parsed)) out.push(...parsed);
+      else if (parsed !== null && typeof parsed === 'object') out.push(parsed);
+    }
+    return out;
+  };
+  const manifest = JSON.parse(utf8(await fetchBytes(base + 'manifest.json')));
+  const stars = await readJson('stars');
+  const cards = await readJson('cards');
+  const maps = await readJson('maps');
+  return mapPack(manifest, stars, cards, maps, jsFiles);
+}
+
+async function loadLocalZipPack(name) {
+  const raw = await fetchBytes(`datapacks/${encodeURIComponent(name)}`);
+  if (raw.length < 4 || raw[0] !== 0x50 || raw[1] !== 0x4b) throw new Error('不是 zip（缺少 PK 头）');
+  const files = await unzip(raw);
+  if (!files.has('manifest.json')) throw new Error('zip 缺少 manifest.json: ' + name);
+  return packFromZipFiles(files);
+}
+
+async function scanLocal() {
+  const res = await fetch('datapacks/?list=1', { cache: 'no-cache' });
+  if (!res.ok) throw new Error(`本地数据包目录缺失（datapacks/?list=1 → ${res.status}），请确认服务端已启动且 datapacks/ 存在`);
+  const { items } = await res.json();
+  const packs = [];
+  for (const it of items ?? []) {
+    try {
+      if (it.type === 'folder') packs.push(await loadLocalFolderPack(it.name));
+      else if (it.type === 'zip') packs.push(await loadLocalZipPack(it.name));
+    } catch (err) {
+      console.warn(`[pack] 本地包 ${it.name} 加载失败：${String(err)}`);
+    }
+  }
+  if (packs.length === 0) throw new Error('datapacks/ 目录没有可识别的数据包（文件夹 / .zip）');
   return mergePacks(packs);
 }
 
@@ -369,14 +427,12 @@ async function unzip(bytes) {
 
 /**
  * 加载内容目录。
- * 配了 url/anonKey：扫描 Supabase Storage 桶根（文件夹 + zip）；
- * 否则回退本地 web/pack/catalog.json。
+ * 配了 url/anonKey：扫描 Supabase Storage 桶 datapacks 根（文件夹 + zip，zip 内存解包）；
+ * 否则读同源 /datapacks/ 目录（本地运行）。
  */
-export async function loadCatalog({ url, anonKey, bucket = 'datapack' } = {}) {
+export async function loadCatalog({ url, anonKey, bucket = 'datapacks' } = {}) {
   if (url && anonKey) return scanBucket(url, anonKey, bucket);
-  const res = await fetch('pack/catalog.json', { cache: 'no-cache' });
-  if (!res.ok) throw new Error('本地数据包缺失，请先运行 npm run build:web');
-  return res.json();
+  return scanLocal();
 }
 
 export { unzip, mapPack, mergePacks };

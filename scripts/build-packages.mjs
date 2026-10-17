@@ -1,5 +1,5 @@
 /**
- * 数据包构建：packages-src/<包名>/ → packages/<包名>.zip（store 方式，零依赖）。
+ * 数据包构建：packages-src/<包名>/ → datapacks/<包名>.zip（store 方式，零依赖）。
  * 用法：node scripts/build-packages.mjs
  */
 
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const SRC = join(root, 'packages-src');
-const OUT = join(root, 'packages');
+const OUT = join(root, 'datapacks');
 
 function crc32(data) {
   crc32.t ??= (() => {
@@ -78,6 +78,8 @@ function walk(dir, prefix = '') {
 mkdirSync(OUT, { recursive: true });
 for (const pkg of readdirSync(SRC, { withFileTypes: true })) {
   if (!pkg.isDirectory()) continue;
+  // outdated* 是历史存档，不参与运行时 datapacks/
+  if (pkg.name.startsWith('outdated')) continue;
   const entries = walk(join(SRC, pkg.name));
   const zip = writeZip(entries);
   writeFileSync(join(OUT, `${pkg.name}.zip`), zip);

@@ -17,8 +17,11 @@ const ACTION_MSGS = new Set([
 export function createLocalNet(mode) {
   const params = new URLSearchParams(location.search);
   // host 没带 ?room 时生成随机房号：部署后多人同时开站不会撞同一个 Realtime 频道
-  const fallbackRoom = mode === 'host' ? 'r' + Math.random().toString(36).slice(2, 8) : 'default';
-  const roomId = (params.get('room') || window.__ALSF_ROOM || fallbackRoom).slice(0, 48);
+  // 但**不再开局自动建房**：只有显式 ?room=<房号>（旧链接 / E2E）才进页即建；
+  // 普通进入先落大厅，用户点「创建并进入」才建房（createRoomNow）。
+  const presetRoom = params.get('room') || window.__ALSF_ROOM || '';
+  const autoHost = mode === 'host' && presetRoom !== '';
+  const roomId = (autoHost ? presetRoom : mode === 'host' ? '' : (presetRoom || 'default')).slice(0, 48);
   const gameMode = params.get('game') || '1v1v1v1';
   const mapId = params.get('map') || 'plaza';
 
@@ -49,6 +52,8 @@ export function createLocalNet(mode) {
   let host = null;
   let transport = null;
   let replica = null;
+  let catalogCache = null;   // 建房用（loadCatalog 的结果）
+  let creating = false;      // 防「创建房间」重复点击
   const sent = new Set();
   let cidSeq = 0;
   let flagged = false;
@@ -62,18 +67,22 @@ export function createLocalNet(mode) {
   async function init(name) {
     try {
       const localOnly = window.__ALSF_TRANSPORT === 'local' || params.get('transport') === 'local';
-      let catalog;
       try {
-        catalog = await loadCatalog(localOnly ? {} : {
+        catalogCache = await loadCatalog(localOnly ? {} : {
           url: window.__SUPABASE_URL,
           anonKey: window.__SUPABASE_ANON_KEY,
           bucket: window.__ALSF_PACK_BUCKET,
         });
       } catch (err) {
         console.warn('[net-local] 存储桶数据包加载失败，回退本地：' + String(err));
-        catalog = await loadCatalog({});
+        catalogCache = await loadCatalog({});
       }
-      setCatalog(catalog);
+      setCatalog(catalogCache);
+      if (mode === 'host' && !autoHost) {
+        // 房主待命：不自动建房。WELCOME（含地图列表）由 hello() 发，大厅建房表单用它
+        net.emit('_open', {});
+        return;
+      }
       if (mode === 'host') {
         transport = await createTransport(roomId, onHostMessage);
         host = createHost({
@@ -82,7 +91,7 @@ export function createLocalNet(mode) {
           mode: gameMode,
           mapId,
           hostName: name,
-          catalog,
+          catalog: catalogCache,
           emit: hostEmit,
         });
         net.playerId = host.hostId;
@@ -95,6 +104,34 @@ export function createLocalNet(mode) {
       }
     } catch (err) {
       net.emit(MSG.ERROR, { code: 'LOCAL_INIT', msg: '初始化失败：' + String(err) });
+    }
+  }
+
+  /** 房主在大厅点「创建并进入」：建传输层 + 建 Match，然后 WELCOME + ROOM 进房。 */
+  async function createRoomNow(d) {
+    if (host !== null) { host.action(host.hostId, MSG.CREATE_ROOM, d ?? {}); return; }
+    if (creating) return;
+    creating = true;
+    try {
+      const rid = (presetRoom || 'r' + Math.random().toString(36).slice(2, 8)).slice(0, 48);
+      transport = await createTransport(rid, onHostMessage);
+      host = createHost({
+        roomId: rid,
+        name: String(d.name ?? '').trim().slice(0, 16) || '我的房间',
+        mode: String(d.mode ?? gameMode),
+        mapId: String(d.mapId ?? mapId),
+        hostName: net.name,
+        catalog: catalogCache,
+        emit: hostEmit,
+      });
+      net.playerId = host.hostId;
+      net.roomId = rid;
+      host.welcome(host.hostId); // S.me（地图列表已在 hello 时发过）
+      host.sync();               // ROOM + PHASE + LOBBY → 客户端进入房间屏
+    } catch (err) {
+      net.emit(MSG.ERROR, { code: 'LOCAL_INIT', msg: '创建房间失败：' + String(err) });
+    } finally {
+      creating = false;
     }
   }
 
@@ -162,9 +199,19 @@ export function createLocalNet(mode) {
 
   net.hello = () => {
     if (mode === 'host') {
-      if (host === null) return;
-      host.welcome(host.hostId);
-      host.broadcastLobby();
+      if (host !== null) {
+        host.welcome(host.hostId);
+        host.broadcastLobby();
+        return;
+      }
+      // 未建房：只发 WELCOME（带地图列表，供大厅「创建房间」表单用），不进任何房间
+      net.playerId = 'h1';
+      net.emit(MSG.WELCOME, {
+        id: 'h1',
+        protocol: PROTOCOL,
+        serverTime: Date.now(),
+        maps: (catalogCache?.maps ?? []).map((m) => ({ id: m.id, name: m.name, width: m.width, height: m.height })),
+      });
     } else if (transport !== null) {
       transport.send({ from: null, t: MSG.JOIN, d: { name: net.name, protocol: PROTOCOL } });
     }
@@ -172,7 +219,9 @@ export function createLocalNet(mode) {
 
   net.send = (t, d) => {
     if (mode === 'host') {
-      if (host !== null) host.action(host.hostId, t, d ?? {});
+      if (host !== null) { host.action(host.hostId, t, d ?? {}); return; }
+      // 未建房：只接受「创建房间」，其余动作忽略（还没房可操作）
+      if (t === MSG.CREATE_ROOM) { void createRoomNow(d ?? {}); return; }
       return;
     }
     if (transport === null) return;

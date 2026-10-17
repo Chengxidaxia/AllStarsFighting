@@ -3,7 +3,7 @@ dist/
 dist-test/
 .m2/
 data/
-packages/*.zip
+datapacks/*.zip
 web/pack/
 web/js/engine.js
 web/js/config.local.js
@@ -20,3 +20,9 @@ scripts/shot-preview.mjs
 .env
 *.bat
 *.log
+
+# 用户自制数据包不进仓库（本地/桶内用）
+chengxidaxiapack/
+packages-outdated/
+packages-src/outdatedsystem/
+packages-src/system/cards/js/

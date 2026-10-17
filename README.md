@@ -2,7 +2,7 @@
 
 **AllStarFighting（简称 ALSF）** —— 回合制卡牌对战 · 多人乱斗。TypeScript 权威服务端 + 原生网页客户端（零构建），桌面与手机同一入口。
 
-> **进度**：S1–S7+ 已实现 —— 游戏大厅 / 等待房自选组队 / 选英雄 / 选出生点 / 共享牌堆回合战斗 / 全体与队伍聊天 / 掉线重连与重开 / 内容管理端 / 对局观战 / 个人设置 / 数据包（zip）驱动内容。
+> **进度**：S1–S7+ 已实现 —— 游戏大厅 / 等待房自选组队 / 选英雄 / 选出生点 / 共享牌堆回合战斗 / 全体与队伍聊天 / 掉线重连与重开 / 内容管理端 / 对局观战 / 个人设置 / 数据包（`datapacks/` 目录 + Supabase 存储桶）驱动内容 / 部署版（房主权威 + 邮箱登录 + 改名）。
 > 设计文档：`docs/design/alsf-design.md` ｜ 界面预览：`docs/preview/alsf-preview.html`
 
 ---
@@ -26,7 +26,7 @@ ALSF 是一款**多人回合制卡牌乱斗**：所有玩家被投进一张矩�
 | **组队乱斗** | 等待房内**自选队伍**，支持 `1v1v1v1 / 2v2 / 3v3 / 4v4 / 2v2v2v2` 五种模式，按队伍顺序行动。 |
 | **聊天** | 全体广播 + 队伍密聊 + 战报日志，边打边吹。 |
 | **观战** | 对局开始后，外部玩家可进入房间**观战**：不占座位、不进回合序、不收手牌，但实时同步棋盘 / 战况 / 战报。 |
-| **数据包** | 英雄 / 卡牌 / 地图全部来自 `packages/*.zip`，每个内容一个 JSON 文件（id 写在文件内）；内置默认数据包名为 **AllStarFighting System Core Content Pack**，新增内容无需改引擎。 |
+| **数据包** | 英雄 / 卡牌 / 地图全部来自数据包：本地读 `datapacks/` 目录（文件夹包或 zip 包），部署版读 Supabase 存储桶 `datapacks`；每个内容一个 JSON 文件（id 写在文件内），新增内容无需改引擎。 |
 | **个人设置** | 大厅顶栏「设置」：渲染方式（Canvas2D 默认 / WebGL 实验）、本地昵称缓存。 |
 
 ### 一局流程
@@ -105,9 +105,9 @@ alsf/
 │   ├── config.ts               端口 / 超时 / 手牌数 / 回血量 等规则参数
 │   ├── protocol/types.ts       ★ 线协议契约 v0.2（改这里 = 改协议）
 │   ├── data/
-│   │   ├── packages.ts         ★ 数据包加载（zip：manifest + stars/ cards/ maps/ + js）
-│   │   ├── store.ts            默认内容（数据包）+ data/catalog.json 管理端覆盖
-│   │   └── zip.ts              零依赖 zip 读写
+│   │   ├── packages.ts         ★ 数据包加载（datapacks/ 目录：文件夹包 + zip 内存解包）
+│   │   ├── store.ts            默认内容 + datapacks/_admin/ 管理端覆盖包（启动优先）
+│   │   └── zip.ts              零依赖 zip 读写（内存解包，不落临时盘）
 │   ├── game/
 │   │   ├── match.ts            ★ 对局聚合根：阶段机 + 回合 + 行动派发 + 中止
 │   │   ├── deck.ts / rng.ts    共享牌堆（抽空洗回）+ 可播种随机
@@ -121,9 +121,9 @@ alsf/
 │   ├── index.html              7 屏：进入/大厅/房间/选英雄/选出生点/对战/结算
 │   ├── css/style.css           主题 + 游戏内/游戏外分区 + 动画 + 手机适配
 │   └── js/{net,game,render,main}.js
-├── packages/                   已打包的数据包（*.zip）
-├── packages-src/               数据包源（per-file；node scripts/build-packages.mjs 打包）
-├── data/                       运行期数据（管理端保存的 catalog.json 等）
+├── datapacks/                  运行时数据包根：文件夹包 / *.zip|*.pack|*.alsfpack（zip 内存解包）
+│   └── _admin/                 管理端保存的覆盖包（引擎格式直读，启动优先；gitignore）
+├── packages-src/               数据包源（per-file；node scripts/build-packages.mjs 打包为 zip）
 ├── test/                       vitest（grid / deck / match / lobby / gateway）
 ├── docs/design/                设计文档
 ├── docs/preview/               界面预览与截图
@@ -151,7 +151,7 @@ alsf/
 
 ### 包结构
 
-每个数据包是 `packages/<name>.zip`，源目录在 `packages-src/<name>/`：
+每个数据包位于 `datapacks/<name>/`（**文件夹包**）或 `datapacks/<name>.zip|.pack|.alsfpack`（**zip 包**，内存解包、不落临时盘）；源目录在 `packages-src/<name>/`：
 
 ```
 manifest.json          基础信息（见下表）
@@ -216,10 +216,10 @@ assets/                图片等素材
 
 ### 加载与生效
 
-1. 服务端启动时扫描 `packages/*.zip`（按文件名顺序合并），逐个解析 `manifest` 与 per-file 内容。
-2. 得到一份内存目录（英雄 / 卡牌 / 地图）；`manifest.defaultMap` 指定的地图置顶。
-3. 管理端保存后写入 `data/catalog.json`，**覆盖**数据包默认值；`data/catalog.json` 存在时优先使用它。
-4. 管理端保存会**热更内存**，新对局立即生效（无需重启）。
+1. **本地**：启动时扫描 `datapacks/`——文件夹包直接读，zip 包内存解包（`.zip` / `.pack` / `.alsfpack`，loader 按 PK 头识别不认后缀）；**云端**：扫 Supabase 存储桶 `datapacks` 根（同样是文件夹 / zip 混合）。
+2. 所有包按名称顺序合并为一份内存目录（英雄 / 卡牌 / 地图）；`manifest.defaultMap` 指定的地图置顶。
+3. `datapacks/_admin/`（管理端保存生成的覆盖包，引擎格式直读）**优先**于其他包，逐项覆盖同名内容。
+4. 管理端保存会**热更内存**，新对局立即生效（无需重启）；新增 zip 包需重启（或重新触发加载）。
 
 ### 构建数据包
 
@@ -227,21 +227,23 @@ assets/                图片等素材
 node scripts\build-packages.mjs
 ```
 
-会扫描 `packages-src/<name>/` 下所有文件，递归打包为 `packages/<name>.zip`（零依赖 store 方式）。
+会扫描 `packages-src/<name>/` 下所有文件，递归打包为 `datapacks/<name>.zip`（零依赖 store 方式）。
+
+> 跳过 `outdated` 前缀的存档目录（旧版内容不进运行时）；`npm run predev` 会自动先打包再启服务端，新克隆仓库开箱即有 zip 数据包。
 
 ### Supabase 存储桶（云端数据包）
 
-桶**根目录**扫描：每个 **文件夹** = 一个数据包；`.pack`（**推荐**）或 `.zip` 也是一个数据包；根目录的 `catalog.json`（合并目录）可直接用。
+部署版不读本地盘，改为扫描**桶根目录**：每个**文件夹** = 一个数据包；`.zip` / `.pack` / `.alsfpack` 也是数据包（内存解包）。桶里**不再需要** `catalog.json`（已废除该合并目录机制）。
 
+- 桶名：**`datapacks`**（不是 `datapack`），建桶后 **Make public**。
 - 上传：`node scripts/upload-pack.mjs`（读取上一级 `token.env` 的 `ProjectURL` / `Secretkey` / `Bucketname`，把 `packages-src/system` 传到 `system/`）。
-- 桶需 **public**（Storage → Make public），浏览器才能读。
-- 若要 **文件夹 / zip 扫描**（依赖 `list`），还需给 `storage.objects` 加匿名 SELECT 策略：
+- **匿名 `list` 需要 RLS 策略**（public 只放开 `/object/public/` 直取单个文件，`list` 端点始终走 RLS）。Supabase Dashboard → SQL Editor 执行一次：
   ```sql
-  create policy "datapack public read" on storage.objects for select using (bucket_id = 'datapack');
+  create policy "datapacks public read" on storage.objects for select using (bucket_id = 'datapacks');
   ```
-  不加策略也能用根 `catalog.json`（public 可直接下载，不需要 `list`）。
-- ⚠️ **IDM 会拦截 `.zip`**：桶里不要放 `.zip`；用文件夹、根 `catalog.json`，或把 zip 改名 `.pack`（loader 按 PK 头识别，不认后缀）。
-- 本地调试：`npm run build:web` 会把当前包导出 `web/pack/catalog.json`，并生成 `web/js/config.local.js`（读 `token.env`，只含 publishable key，已 gitignore）。
+  不加策略时浏览器 `list` 为空、只能取到已知路径的对象——扫描会退化为空目录。
+- ⚠️ **IDM 会拦截 `.zip` 下载**：桶里优先放**文件夹包**（一个个小 JSON，文本不受影响）；如用 zip，建议改名 `.pack`（loader 按 PK 头识别，不认后缀）。
+- 本地调试链路同构：服务端 `/datapacks/` 路由（`?list=1` 清单 + 防穿越）→ 客户端 `scanLocal()`；`web/js/config.js` 配了 Supabase URL + anon key 才走桶，否则读同源 `/datapacks/`。
 
 ---
 
@@ -253,7 +255,7 @@ node scripts\build-packages.mjs
 - 卡牌效果可用「op 下拉 + ＋加一条」逐条编辑（伤害 / 回血 / 状态 / 位移 / 抽牌…）。
 - `id` 可修改（保存前会校验非空与同分类不重复）。
 - 地图支持网格点格子切地形（空地 → 水 → 墙）。
-- 「保存全部」写入 `data/catalog.json` 并热更，新对局生效。
+- 「保存全部」写入 `datapacks/_admin/` 文件夹包（引擎格式直读，启动优先）并热更，新对局生效。
 
 ---
 
@@ -268,6 +270,7 @@ node scripts\build-packages.mjs
 - **会话 ID**：每个玩家进房时分配一个随机会话 ID，**仅后端日志/调试使用**，不下发前端。
 - **游戏内 / 游戏外分区**（硬要求）：棋盘 + 手牌 = 亮底实线边框；信息头 / 聊天 = 暗底虚线边框，绝不叠压。
 - **手机端**：`viewport-fit=cover` 安全区、Pointer Events 触摸、`≥16px` 输入框防 iOS 缩放、横竖屏自适应。
+- **部署版房主权威**：无服务器时打开页面即房主；**懒建房**——落游戏大厅不自动建 Match，点「创建并进入」（或显式 `?room=`）才创建 transport 与对局，邀请链接 `?mode=guest&room=xxx`。
 - **零构建客户端**：`web/js/*.js` 为原生 ES Module，改完刷新即生效（无打包步骤）。
 
 ---
@@ -289,54 +292,43 @@ node scripts\build-packages.mjs
 
 ---
 
-## 部署（Supabase + Render + 静态客户端）
+## 部署（GitHub Pages + Supabase，房主权威）
 
-推荐拓扑（无需自备服务器）：
+线上部署版（`web` 分支）的拓扑——**无自备服务器、无常驻 WS 进程**：
 
 ```
-静态客户端（Render Static Site / Cloudflare Pages）
-  ├─ 首页 home/
-  └─ ALSF 客户端 web/  ──wss──▶ Render Web Service（ALSF 对局引擎 + /ws）
-                                     └─ 战绩/资料 ──▶ Supabase Postgres
-Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
+GitHub Pages（web 分支，根目录即站点根，CNAME alsf.cx0.cc.cd）
+  └─ 静态客户端（房主权威：__ALSF_MODE="host"）
+       ├─ 对局传输 ──▶ Supabase Realtime Broadcast（房号 r+6位，邀请链接 ?mode=guest&room=xxx）
+       ├─ 账号 ──▶ Supabase Auth（邮箱注册/登录，当前 Confirm email 开启）
+       └─ 数据包 ──▶ Supabase Storage 桶 datapacks（根目录扫描：文件夹/zip）
 ```
 
-> **边界**：Supabase 不能托管**有状态的 WS 对局引擎**（只有 Auth / Postgres / 存储 / 无状态 Edge Functions，没有常驻 WS 进程）。实时对局必须跑在 Render（或同类 Web Service）；Supabase 负责账号、数据与素材。
+- **房主权威**：打开页面即房主（不自动建房，先落游戏大厅），点「创建并进入」才创建 Match 与广播频道；访客经邀请链接进同一房号。权威判定跑在房主浏览器内，作弊面见「架构要点」。
+- **登录门禁显式开启**：`__ALSF_AUTH='on'` 或 `?auth=on` 才启用，`?auth=off` 强关，**默认关**（本地经合集网关已有 hub 账号，不双重挡）；部署版 `config.local.js` 设 `"on"` 所以线上默认开。
+- **分支策略**：`main` = 源码；`web` = 部署产物（orphan 分支，只含静态站点必需文件），推 `web` 即上线。
+- ⚠️ **边界**：Supabase 不能托管有状态的 WS 对局引擎；房主权威是「问答式零服务器」方案（用户已确认接受其作弊面）。若要强防作弊，仍可加 Render Web Service 跑权威服务端，客户端 `config.js` 指向 `wss://` 即可（见下）。
 
 ### 1) Supabase
 
-- 新建项目，记下 `SUPABASE_URL`、`SUPABASE_ANON_KEY`、`SUPABASE_SERVICE_ROLE_KEY`、`SUPABASE_JWT_SECRET`。
-- Auth：开 Email（或 OAuth）；Site URL / Redirect URLs 填静态客户端域名。
-- Postgres：`profiles` / `matches` 等表 + RLS。
-- `SERVICE_ROLE_KEY` / `JWT_SECRET` **只放 Render 环境变量**，不要进仓库或前端。
+- 新建项目，记下 `ProjectURL`（`https://<ref>.supabase.co`）与 anon key（publishable）。
+- Auth：开 Email；Site URL / Redirect URLs 填 Pages 域名（注意本地开发时确认邮件链接会跳 `localhost`，属正常现象）。
+- Storage：建 public 桶 **`datapacks`**，上传数据包（见「Supabase 存储桶」节），执行 RLS SQL 让匿名 `list` 可用。
+- Realtime：Broadcast 默认可用，无需额外建表。
 
-### 2) Render Web Service（对局 / WS）
+### 2) GitHub Pages
 
-- 连本仓库：Build `npm ci --include=dev && npm run build`，Start `npm start`，Health `/health`。
-- Render 注入 `PORT`；服务端优先读 `PORT`，其次 `ALSF_PORT`，最后 24710。
-- **只暴露游戏端口**：Render 只路由 `PORT`；管理端绑 `127.0.0.1:PORT+1`，不对外；若前面还有网关，后端设 `ALSF_HOST=127.0.0.1`。
-- WebSocket 与 HTTP 同端口（`/ws`）：`wss://<service>.onrender.com/ws`。
-- 环境变量：`NODE_ENV=production`、`SUPABASE_URL`、`SUPABASE_JWT_SECRET`、`SUPABASE_SERVICE_ROLE_KEY`。
-- 免费实例会休眠（冷启动 / WS 断），正式用建议付费实例或定时 ping 保活；`render.yaml` 已内置。
+- 仓库 Settings → Pages：Source 选 `web` 分支（根目录）。
+- 自定义域名填 `alsf.cx0.cc.cd`（CNAME 文件已在分支里），DNS 加 CNAME 到 `<user>.github.io`。
+- 部署内容 = `web/` 静态站点（index.html / assets / js，含 config.local.js 生成的 `__ALSF_CONFIG`）。
 
-### 3) 静态客户端
+### 3) 账号（Supabase Auth）
 
-- 把 `web/`（以及首页 `home/`）发布到 **Static Site**（Render Static / Cloudflare Pages / GitHub Pages）。
-- 编辑 `web/js/config.js`，把 WS 指向 Render：
-  ```js
-  window.__ALSF_WS_URL = 'wss://<your-service>.onrender.com/ws';
-  ```
-  同源部署（客户端由 Render 直接托管）时留空即可。
-- 首页若单独静态发布，游戏入口 `url` / `health` 要改成 Render 的绝对地址。
+- 注册/登录为邮箱 + 密码；**Confirm email 当前开启**，新注册需点确认邮件。
+- 名号取邮箱前缀；登录后可改名（房间/大厅内展示）。
+- `web/js/auth.js` 用 esm.sh 动态 import `supabase-js@2`，不打包进仓库。
 
-### 4) 账号（Supabase Auth）
-
-- 客户端用 Supabase 登录，把 `session.access_token` 放进 `JOIN`；
-- Render 服务端用 `SUPABASE_JWT_SECRET` 校验，取 `email` / `user_metadata.name` 作为玩家名；无 token 回退访客名（现状）。
-- 战绩写 `matches`（服务端 service_role 或客户端 RLS）。
-- 当前仓库仍是「访客名可直接玩」版本；Supabase 登录属下一步接入（需项目 URL + anon key）。
-
-### 自建服务器（可选）
+### 自建服务器（可选，权威服务端方案）
 
 - 同机部署：`npm run dev` / `npm start`，客户端与 WS 同源，`config.js` 留空。
 - Nginx 反代 WS：
@@ -349,7 +341,7 @@ Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
     proxy_set_header Host $host;
   }
   ```
-- 数据落盘：`data/catalog.json`、`packages/*.zip`；管理端默认只绑 `127.0.0.1`，不对外。
+- 数据落盘：`datapacks/`（文件夹包 / zip）；管理端默认只绑 `127.0.0.1`，不对外。
 
 ---
 
@@ -359,7 +351,8 @@ Supabase：Auth（登录）+ Postgres（内容/战绩）+ Storage（素材）
 |---|---|
 | 页面卡在「正在进入游戏大厅…」 | 浏览器 F12 看是否有 JS 报错；多半是某个 `web/js/*.js` 语法错误导致模块不执行。改完前端先 Ctrl+F5 硬刷新。 |
 | 看不到地图 / 无法开局 | 数据包是否满足 `maps/*.json`；`/health` 与 `/admin/api/catalog` 可确认地图数量。 |
-| 改了数据包没生效 | 重新 `node scripts/build-packages.mjs` 并重启服务端；若存在 `data/catalog.json`，它会**覆盖**数据包，需同步更新或删除。 |
+| 改了数据包没生效 | 文件夹包改完刷新即生效（服务端直读）；zip 包需重新 `node scripts/build-packages.mjs` 并重启；若 `datapacks/_admin/` 有对应内容，它会**覆盖**数据包，需同步更新或删该项。 |
+| 部署版进页面就出现房间 / 不建房 | 只有显式 `?room=<房号>` 才进页即建（兼容旧链接）；普通进入落大厅，点「创建并进入」才建。 |
 | 管理端打不开 | 用 `ALSF_ADMIN_PORT` 对应端口；管理端不在根入口 `/alsf/admin`。 |
 | 房主退出后对局没结束 | 仅对「对局进行中」生效；`WAITING` 阶段退出只移交房主。 |
 
@@ -380,10 +373,10 @@ npx vitest run
 | S4 | 共享牌堆 + 手牌 + 出牌 + 战斗 + 胜负 | ✅ |
 | S5 | 道具牌三类 + EffectOp 全算子 | ✅ |
 | S6 | 聊天 + 组队 5 模式 + 重开 + 掉线宽限 | ✅ |
-| S7 | 管理端（独立端口，无鉴权；内容增删改 + 热更）+ 数据包 per-file | ✅（Supabase 迁移待做） |
-| S8 | 观战 / 个人设置 / `.env` 部署准备 / 手机深测 / 上线 | 进行中 |
+| S7 | 管理端（独立端口，无鉴权；内容增删改 + 热更）+ 数据包 per-file | ✅ |
+| S8 | 观战 / 个人设置 / 部署版（GitHub Pages + Supabase：房主权威 / 邮箱登录 / 桶数据包） | ✅（Postgres 内容库与战绩待做） |
 
-> 所有后端最终部署 Supabase（Auth + Postgres 存内容与战绩）；实时对局仍走自研 ws。
+> 部署版后端用 Supabase（Auth + Storage + Realtime Broadcast）；Postgres 存内容库与战绩属后续接入。本地权威服务端方案保留可用。
 
 ---
 
@@ -391,7 +384,7 @@ npx vitest run
 
 - **零依赖 / 零构建**：服务端仅 `ws`；客户端原生 ES Module，无打包。
 - **协议两处同步**：`src/server/protocol/types.ts` ↔ `web/js/net.js`。
-- **内容归数据包**：英雄 / 卡牌 / 地图请在 `packages-src/` 下改，不要把内容写进代码。
+- **内容归数据包**：英雄 / 卡牌 / 地图请在 `packages-src/` 下改（打包进 `datapacks/`），不要把内容写进代码。
 - **数据包脚本视为可信代码**：`vm` 不是安全沙箱，只加载可信来源（见「安全边界」）。
 - **游戏内 / 外分区**：视觉上必须分明，互不叠压。
 - **文案**：除游戏名「全冥星大坐站」外，不要出现「冥」字。

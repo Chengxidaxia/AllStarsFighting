@@ -19,7 +19,7 @@ const get = (k) => {
 const url = get('ProjectURL').replace(/\/+$/, '');
 const secret = get('Secretkey') || get('ServiceRoleKey') || get('SUPABASE_SERVICE_ROLE_KEY');
 const publishable = get('Publishablekey') || get('AnonKey');
-const bucket = get('Bucketname') || 'datapack';
+const bucket = get('Bucketname') || 'datapacks';
 if (url === '' || secret === '') { console.error('缺少 ProjectURL / Secretkey'); process.exit(1); }
 
 const root = 'packages-src/system';

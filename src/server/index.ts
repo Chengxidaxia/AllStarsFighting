@@ -13,13 +13,17 @@ import { config, PROTOCOL_VERSION } from './config.js';
 import { Lobby } from './game/lobby.js';
 import type { MatchOpts } from './game/match.js';
 import { Gateway } from './net/gateway.js';
-import { createStaticHandler } from './http/static.js';
+import { createStaticHandler, createDatapacksHandler } from './http/static.js';
 import { handleAdminApi } from './net/admin.js';
 import { log } from './util/log.js';
 import { MATCH_MODES, type MatchMode } from './protocol/types.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const webRoot = join(here, '..', '..', 'web');
+const packsRoot = join(here, '..', '..', 'datapacks');
+
+const staticHandler = createStaticHandler(webRoot);
+const datapacksHandler = createDatapacksHandler(packsRoot);
 
 const server = createServer((req, res) => {
   if (req.url === '/health') {
@@ -36,6 +40,11 @@ const server = createServer((req, res) => {
       players: gw?.sessionCount() ?? 0,
       online: lobby.list().reduce((n, r) => n + r.playerIds.size, 0),
     }));
+    return;
+  }
+  // 本地运行的数据包来源：/datapacks/（列表 + 文件；zip 由浏览器内存解包）
+  if (req.url === '/datapacks' || req.url?.startsWith('/datapacks/') === true || req.url?.startsWith('/datapacks?') === true) {
+    datapacksHandler(req, res);
     return;
   }
   staticHandler(req, res);
@@ -62,8 +71,6 @@ const adminServer = createServer((req, res) => {
   }
   res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }).end('Not Found');
 });
-
-const staticHandler = createStaticHandler(webRoot);
 
 const matchOpts = (roomId: string, name: string, mode: MatchMode, hostId: string, mapId?: string): MatchOpts => ({
   roomId, name, mode, hostId, mapId,

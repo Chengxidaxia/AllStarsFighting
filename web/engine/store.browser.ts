@@ -1,6 +1,6 @@
 /**
  * 浏览器版内容目录（替代 src/server/data/store.ts 的 fs/zip 加载）。
- * 数据包由 pack.js 从 Supabase 存储桶（或本地 web/pack/catalog.json）读取后注入。
+ * 数据包由 pack.js 从 Supabase 存储桶 datapacks（或本地 /datapacks/ 目录）读取后注入。
  */
 import type { CardDef } from '../../src/server/protocol/types.js';
 import type { HeroDef } from '../../src/server/game/heroes.js';
