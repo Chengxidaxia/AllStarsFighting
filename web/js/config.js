@@ -17,8 +17,10 @@ window.__ALSF_WS_URL = '';
 window.__ALSF_MODE = '';
 window.__ALSF_TRANSPORT = ''; // 'local' 强制 BroadcastChannel（本地调试/无 Supabase 时）
 /*
- * 登录门禁（部署版）：配了 Supabase URL/KEY 时默认开启（邮箱 + 密码，照仿首页登录注册）。
- * __ALSF_AUTH = 'off' → 关闭门禁（本地开发 / E2E / 直连 WS 服务端时用）。
+ * 登录门禁（显式开启，避免本地开发被挡）：
+ *   __ALSF_AUTH = 'on' 或 ?auth=on → 启用（部署版在 config.local.js 里设 'on'）；
+ *   ?auth=off → 强制关闭（本地开发 / E2E / 直连 WS 服务端时用）；
+ *   默认关闭：本地经合集网关（已有 hub 账号）不该被双重门禁挡着。
  */
 window.__ALSF_AUTH = '';
 window.__SUPABASE_URL = '';

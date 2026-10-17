@@ -2,9 +2,10 @@
  * 登录 / 注册（照仿首页：顶栏入口 → 模态面板；未登录门禁）。
  * 后端 = Supabase Auth 邮箱 + 密码（部署版没有 Node 服务端，会话由 supabase-js 存在 localStorage）。
  *
- * 门禁开关：
- *  - 配了 __SUPABASE_URL / __SUPABASE_ANON_KEY → 启用（部署版默认）；
- *  - ?auth=off 或 __ALSF_AUTH='off' → 关闭（本地开发 / E2E / 直连 WS 服务端时用）。
+ * 门禁开关（显式开启，避免本地开发被挡）：
+ *  - __ALSF_AUTH = 'on' 或 ?auth=on → 启用（部署版在 config.local.js 里设 'on'）；
+ *  - ?auth=off → 强制关闭（本地开发 / E2E / 直连 WS 服务端时用）；
+ *  - 默认关闭：本地经合集网关（已有 hub 账号）不该被双重门禁挡着。
  */
 
 const ERR_MAP = [
@@ -36,8 +37,9 @@ export function createAuth() {
   const params = new URLSearchParams(location.search);
   const url = String(window.__SUPABASE_URL ?? '').trim();
   const key = String(window.__SUPABASE_ANON_KEY ?? '').trim();
-  const off = params.get('auth') === 'off' || window.__ALSF_AUTH === 'off';
-  let enabled = !off && url !== '' && key !== '';
+  const off = params.get('auth') === 'off';
+  const authOn = params.get('auth') === 'on' || window.__ALSF_AUTH === 'on';
+  let enabled = authOn && !off && url !== '' && key !== '';
 
   const listeners = new Set();
   let user = null; // { id, email }
