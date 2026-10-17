@@ -65,6 +65,14 @@ ALSF 是一款**多人回合制卡牌乱斗**：所有玩家被投进一张矩�
 
 > 手机访问需放行 Windows 防火墙的 24710 端口；端口可用 `ALSF_PORT` 覆盖。
 
+### 账号与登录（仓库范围）
+
+本仓库是**独立可运行的 ALSF 服务**，不包含父级合集网关与账号系统：
+
+- `root/server.mjs`（24740，`/alsf/` 准入 + `hub_session` 账号会话）、`home/` 合集主页、`data/users.json` / `data/sessions.json` 都在**父级合集**里，**不在本仓库**。
+- 独立运行时，客户端 `fetch('/api/me')` 取不到账号 → 自动回退为本地昵称 / 访客名（`星海NNN`），可直接开局。
+- 正式上线计划用 **Supabase Auth**（邮箱 / OAuth）替代父级自建账号；实时对局仍走本服务 ws。
+
 ### 操作
 
 | 平台 | 移动 | 出牌 |
@@ -287,7 +295,7 @@ node scripts\build-packages.mjs
      proxy_set_header Host $host;
    }
    ```
-   或直接用合集网关 `root/server.mjs`（24740，含账号会话与 `/alsf/` 准入）。
+   或使用父级合集网关（`root/server.mjs`，24740，含账号会话与 `/alsf/` 准入）——**该网关不在本仓库**，单独部署时可忽略。
 4. **数据持久化**：`data/catalog.json`（管理端保存）与根站 `data/users.json` / `data/sessions.json` 需持久卷；`packages/*.zip` 随代码部署。
 5. **健康检查**：`GET /health` 返回 `{ ok, game, version, rooms, players, online }`。
 6. **安全**：管理端不随根入口暴露；公网只暴露游戏入口，管理端仅内网 / 本机访问。
