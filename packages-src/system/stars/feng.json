@@ -1,0 +1,51 @@
+{
+  "id": "feng",
+  "name": "锋",
+  "hp": 6,
+  "attack": {
+    "type": "NER",
+    "damage": 3
+  },
+  "modifiers": [
+    {
+      "op": "pierce",
+      "ratio": 0.3
+    }
+  ],
+  "special": {
+    "text": "穿透30%"
+  },
+  "skills": [
+    {
+      "name": "突刺",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 3,
+          "mode": "NER"
+        }
+      ],
+      "text": "NER3+穿透"
+    },
+    {
+      "name": "战吼",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "shield",
+          "ref": "self",
+          "amount": 2
+        }
+      ],
+      "text": "攻+1（本引擎近似：护盾+2）"
+    },
+    {
+      "name": "旋风斩",
+      "targeting": "none",
+      "code": "for (const id of api.enemiesInRadius('self', 1)) api.damage(id, 3, 'NER');",
+      "text": "周围全敌NER3"
+    }
+  ]
+}

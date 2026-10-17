@@ -1,0 +1,16 @@
+{
+  "id": "bolt",
+  "amount": 2,
+  "name": "闪电",
+  "type": "BSC",
+  "targeting": "enemy",
+  "steps": [
+    {
+      "fn": "damage",
+      "ref": "target",
+      "amount": 4,
+      "mode": "MAG"
+    }
+  ],
+  "text": "MAG4"
+}

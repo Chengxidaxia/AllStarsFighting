@@ -1,0 +1,14 @@
+{
+  "id": "vampire",
+  "amount": 1,
+  "name": "吸血牙",
+  "type": "PSV",
+  "targeting": "none",
+  "effects": [
+    {
+      "op": "lifesteal",
+      "ratio": 0.25
+    }
+  ],
+  "text": "吸血25%"
+}

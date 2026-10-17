@@ -1,0 +1,55 @@
+{
+  "id": "guang",
+  "name": "光",
+  "hp": 6,
+  "attack": {
+    "type": "MAG",
+    "damage": 3
+  },
+  "modifiers": [
+    {
+      "op": "foresee"
+    }
+  ],
+  "special": {
+    "text": "看破（回合末多抽1）"
+  },
+  "skills": [
+    {
+      "name": "圣光弹",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 3,
+          "mode": "MAG"
+        }
+      ],
+      "text": "MAG3"
+    },
+    {
+      "name": "庇护",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "shield",
+          "ref": "self",
+          "amount": 2
+        },
+        {
+          "fn": "heal",
+          "ref": "self",
+          "amount": 2
+        }
+      ],
+      "text": "护盾2+回2"
+    },
+    {
+      "name": "审判",
+      "targeting": "none",
+      "code": "for (const id of api.aliveEnemies('self')) api.damage(id, 3, 'MAG');",
+      "text": "全敌MAG3"
+    }
+  ]
+}

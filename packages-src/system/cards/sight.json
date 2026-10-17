@@ -1,0 +1,13 @@
+{
+  "id": "sight",
+  "amount": 1,
+  "name": "千里眼",
+  "type": "PSV",
+  "targeting": "none",
+  "effects": [
+    {
+      "op": "foresee"
+    }
+  ],
+  "text": "看破"
+}

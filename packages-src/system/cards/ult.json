@@ -1,0 +1,9 @@
+{
+  "id": "ult",
+  "amount": 4,
+  "name": "大",
+  "kind": "general",
+  "category": "ult",
+  "targeting": "none",
+  "text": "触发英雄大招"
+}

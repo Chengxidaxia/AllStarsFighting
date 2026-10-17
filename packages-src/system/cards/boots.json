@@ -1,0 +1,14 @@
+{
+  "id": "boots",
+  "amount": 2,
+  "name": "疾行靴",
+  "type": "PSV",
+  "targeting": "none",
+  "effects": [
+    {
+      "op": "move",
+      "tiles": 1
+    }
+  ],
+  "text": "移动+1"
+}

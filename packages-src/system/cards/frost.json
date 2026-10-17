@@ -1,0 +1,23 @@
+{
+  "id": "frost",
+  "amount": 3,
+  "name": "寒冰箭",
+  "type": "BSC",
+  "targeting": "enemy",
+  "steps": [
+    {
+      "fn": "damage",
+      "ref": "target",
+      "amount": 2,
+      "mode": "MAG"
+    },
+    {
+      "fn": "addStatus",
+      "ref": "target",
+      "kind": "stun",
+      "turns": 1,
+      "value": 1
+    }
+  ],
+  "text": "MAG2+定身1回合"
+}

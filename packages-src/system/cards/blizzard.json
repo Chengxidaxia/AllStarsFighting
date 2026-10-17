@@ -1,0 +1,9 @@
+{
+  "id": "blizzard",
+  "amount": 1,
+  "name": "暴风雪",
+  "type": "BSC",
+  "targeting": "none",
+  "code": "for (const id of api.aliveEnemies('self')) api.damage(id, 2, 'MAG');",
+  "text": "全敌MAG2"
+}

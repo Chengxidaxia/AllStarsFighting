@@ -1,0 +1,9 @@
+{
+  "id": "trap",
+  "amount": 2,
+  "name": "陷阱",
+  "type": "PLB",
+  "targeting": "tile",
+  "code": "api.placeTrap(3);",
+  "text": "一次性，踩中3ATK"
+}

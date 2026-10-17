@@ -1,0 +1,23 @@
+{
+  "id": "fireball",
+  "amount": 4,
+  "name": "火球术",
+  "type": "BSC",
+  "targeting": "enemy",
+  "steps": [
+    {
+      "fn": "damage",
+      "ref": "target",
+      "amount": 2,
+      "mode": "MAG"
+    },
+    {
+      "fn": "addStatus",
+      "ref": "target",
+      "kind": "burn",
+      "turns": 3,
+      "value": 1
+    }
+  ],
+  "text": "MAG2+灼烧3回合"
+}

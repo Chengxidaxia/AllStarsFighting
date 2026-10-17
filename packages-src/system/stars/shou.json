@@ -1,0 +1,55 @@
+{
+  "id": "shou",
+  "name": "守",
+  "hp": 8,
+  "attack": {
+    "type": "NER",
+    "damage": 2
+  },
+  "modifiers": [],
+  "special": {
+    "text": "减伤（坚实）：每回合开始获得 1 护盾",
+    "onTurnStart": "api.shield('self', 1);"
+  },
+  "skills": [
+    {
+      "name": "盾击",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 2,
+          "mode": "NER"
+        }
+      ],
+      "text": "NER2"
+    },
+    {
+      "name": "铁壁",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "shield",
+          "ref": "self",
+          "amount": 4
+        }
+      ],
+      "text": "护盾+4"
+    },
+    {
+      "name": "嘲讽",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "addStatus",
+          "ref": "target",
+          "kind": "disarm",
+          "turns": 2,
+          "value": 1
+        }
+      ],
+      "text": "缴械2"
+    }
+  ]
+}

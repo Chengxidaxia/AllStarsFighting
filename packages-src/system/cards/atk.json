@@ -1,0 +1,9 @@
+{
+  "id": "atk",
+  "amount": 16,
+  "name": "攻",
+  "kind": "general",
+  "category": "atk",
+  "targeting": "enemy",
+  "text": "发动英雄基础攻击（按英雄 ATK）"
+}

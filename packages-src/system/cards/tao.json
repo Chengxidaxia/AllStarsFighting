@@ -1,0 +1,9 @@
+{
+  "id": "tao",
+  "amount": 8,
+  "name": "桃",
+  "kind": "general",
+  "category": "heal",
+  "targeting": "self",
+  "text": "+4HP"
+}

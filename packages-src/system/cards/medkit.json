@@ -1,0 +1,15 @@
+{
+  "id": "medkit",
+  "amount": 1,
+  "name": "急救包",
+  "type": "BSC",
+  "targeting": "self",
+  "steps": [
+    {
+      "fn": "heal",
+      "ref": "self",
+      "amount": 5
+    }
+  ],
+  "text": "+5HP"
+}

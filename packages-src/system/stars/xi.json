@@ -1,0 +1,51 @@
+{
+  "id": "xi",
+  "name": "溪",
+  "hp": 5,
+  "attack": {
+    "type": "MAG",
+    "damage": 2
+  },
+  "modifiers": [
+    {
+      "op": "lifesteal",
+      "ratio": 0.2
+    }
+  ],
+  "special": {
+    "text": "吸血20%"
+  },
+  "skills": [
+    {
+      "name": "水弹",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 3,
+          "mode": "MAG"
+        }
+      ],
+      "text": "MAG3"
+    },
+    {
+      "name": "治愈之泉",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "heal",
+          "ref": "self",
+          "amount": 4
+        }
+      ],
+      "text": "+4HP"
+    },
+    {
+      "name": "洪流",
+      "targeting": "none",
+      "code": "for (const id of api.aliveEnemies('self')) api.damage(id, 2, 'MAG');",
+      "text": "全敌MAG2"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "shieldcard",
+  "amount": 2,
+  "name": "护盾术",
+  "type": "BSC",
+  "targeting": "self",
+  "steps": [
+    {
+      "fn": "shield",
+      "ref": "self",
+      "amount": 3
+    }
+  ],
+  "text": "护盾+3"
+}

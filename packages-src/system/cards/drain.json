@@ -1,0 +1,21 @@
+{
+  "id": "drain",
+  "amount": 2,
+  "name": "汲取",
+  "type": "BSC",
+  "targeting": "enemy",
+  "steps": [
+    {
+      "fn": "damage",
+      "ref": "target",
+      "amount": 3,
+      "mode": "MAG"
+    },
+    {
+      "fn": "heal",
+      "ref": "self",
+      "amount": 3
+    }
+  ],
+  "text": "造成3点伤害并治疗自身"
+}

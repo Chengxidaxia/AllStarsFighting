@@ -1,0 +1,52 @@
+{
+  "id": "rock",
+  "name": "岩",
+  "hp": 7,
+  "attack": {
+    "type": "NER",
+    "damage": 2
+  },
+  "modifiers": [
+    {
+      "op": "status",
+      "status": "thorn",
+      "value": 1
+    }
+  ],
+  "special": {
+    "text": "荆棘1"
+  },
+  "skills": [
+    {
+      "name": "碎石拳",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 3,
+          "mode": "NER"
+        }
+      ],
+      "text": "NER3"
+    },
+    {
+      "name": "岩甲",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "shield",
+          "ref": "self",
+          "amount": 3
+        }
+      ],
+      "text": "护盾+3"
+    },
+    {
+      "name": "地裂",
+      "targeting": "none",
+      "code": "for (const id of api.enemiesInTiles(api.crossTiles(true))) api.damage(id, 2, 'NER');",
+      "text": "十字NER2"
+    }
+  ]
+}

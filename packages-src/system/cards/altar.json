@@ -1,0 +1,9 @@
+{
+  "id": "altar",
+  "amount": 2,
+  "name": "祭坛",
+  "type": "PLB",
+  "targeting": "tile",
+  "code": "api.placeAltar();",
+  "text": "放置回血祭坛"
+}

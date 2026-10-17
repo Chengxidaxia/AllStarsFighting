@@ -1,0 +1,48 @@
+{
+  "id": "shadow",
+  "name": "影",
+  "hp": 5,
+  "attack": {
+    "type": "FAR",
+    "damage": 2
+  },
+  "modifiers": [
+    {
+      "op": "ghost"
+    }
+  ],
+  "special": {
+    "text": "穿墙"
+  },
+  "skills": [
+    {
+      "name": "暗影箭",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 3,
+          "mode": "FAR"
+        }
+      ],
+      "text": "FAR3"
+    },
+    {
+      "name": "闪现",
+      "targeting": "tile",
+      "code": "api.teleportTo('self', ctx.x, ctx.y);",
+      "text": "传送到目标格"
+    },
+    {
+      "name": "影分身",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "extraTurn"
+        }
+      ],
+      "text": "额外回合"
+    }
+  ]
+}

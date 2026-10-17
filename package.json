@@ -1,0 +1,32 @@
+{
+  "name": "alsf",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AllStarFighting (全冥星大坐站 / ALSF) — 实时联机对战",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/server/index.ts",
+    "start": "node dist/server/index.js",
+    "build": "tsc -p tsconfig.json",
+    "postinstall": "node scripts/build-packages.mjs",
+    "prestart": "node scripts/build-packages.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "puppeteer-core": "^25.14.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "3.2.4"
+  }
+}

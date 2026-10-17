@@ -1,0 +1,15 @@
+{
+  "id": "tome",
+  "amount": 1,
+  "name": "魔典",
+  "type": "PSV",
+  "targeting": "none",
+  "effects": [
+    {
+      "op": "status",
+      "status": "magicVeil",
+      "value": 2
+    }
+  ],
+  "text": "法术减伤2"
+}

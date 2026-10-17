@@ -1,0 +1,9 @@
+{
+  "id": "quake",
+  "amount": 1,
+  "name": "地动",
+  "type": "BSC",
+  "targeting": "none",
+  "code": "for (const id of api.aliveEnemies('self')) api.damage(id, 2, 'NER');",
+  "text": "全敌NER2"
+}

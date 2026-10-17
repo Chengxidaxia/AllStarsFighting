@@ -1,0 +1,61 @@
+{
+  "id": "wu",
+  "name": "巫",
+  "hp": 5,
+  "attack": {
+    "type": "MAG",
+    "damage": 2
+  },
+  "modifiers": [
+    {
+      "op": "status",
+      "status": "magicVeil",
+      "value": 2
+    }
+  ],
+  "special": {
+    "text": "法幕2"
+  },
+  "skills": [
+    {
+      "name": "毒咒",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 1,
+          "mode": "MAG"
+        },
+        {
+          "fn": "addStatus",
+          "ref": "target",
+          "kind": "poison",
+          "turns": 4,
+          "value": 1
+        }
+      ],
+      "text": "MAG1+中毒4"
+    },
+    {
+      "name": "沉默术",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "addStatus",
+          "ref": "target",
+          "kind": "silence",
+          "turns": 2,
+          "value": 1
+        }
+      ],
+      "text": "沉默2"
+    },
+    {
+      "name": "瘟疫",
+      "targeting": "none",
+      "code": "for (const id of api.aliveEnemies('self')) api.addStatus(id, 'poison', 3, 1);",
+      "text": "全敌中毒"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "id": "ghostcloak",
+  "amount": 1,
+  "name": "幽灵斗篷",
+  "type": "PSV",
+  "targeting": "none",
+  "effects": [
+    {
+      "op": "ghost"
+    }
+  ],
+  "text": "穿墙"
+}

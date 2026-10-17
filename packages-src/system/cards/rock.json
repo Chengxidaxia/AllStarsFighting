@@ -1,0 +1,9 @@
+{
+  "id": "rock",
+  "amount": 2,
+  "name": "岩石",
+  "type": "PLB",
+  "targeting": "tile",
+  "code": "api.placeRock();",
+  "text": "放置岩石（墙）"
+}

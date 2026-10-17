@@ -1,0 +1,56 @@
+{
+  "id": "yan",
+  "name": "焱",
+  "hp": 6,
+  "attack": {
+    "type": "FAR",
+    "damage": 3
+  },
+  "modifiers": [
+    {
+      "op": "burnImmune"
+    }
+  ],
+  "special": {
+    "text": "免灼"
+  },
+  "skills": [
+    {
+      "name": "火球术",
+      "targeting": "enemy",
+      "steps": [
+        {
+          "fn": "damage",
+          "ref": "target",
+          "amount": 2,
+          "mode": "MAG"
+        },
+        {
+          "fn": "addStatus",
+          "ref": "target",
+          "kind": "burn",
+          "turns": 3,
+          "value": 1
+        }
+      ],
+      "text": "MAG2+灼烧3回合"
+    },
+    {
+      "name": "疾风步",
+      "targeting": "self",
+      "steps": [
+        {
+          "fn": "grantMove",
+          "tiles": 1
+        }
+      ],
+      "text": "移动+1"
+    },
+    {
+      "name": "焚天灭地",
+      "targeting": "enemy",
+      "code": "api.damage('target', 4, 'MAG'); for (const id of api.enemiesInRadius('target', 1)) api.damage(id, 2, 'MAG');",
+      "text": "MAG4+溅射"
+    }
+  ]
+}

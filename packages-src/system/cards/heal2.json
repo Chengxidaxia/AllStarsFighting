@@ -1,0 +1,15 @@
+{
+  "id": "heal2",
+  "amount": 2,
+  "name": "治愈术",
+  "type": "BSC",
+  "targeting": "self",
+  "steps": [
+    {
+      "fn": "heal",
+      "ref": "self",
+      "amount": 2
+    }
+  ],
+  "text": "+2HP"
+}

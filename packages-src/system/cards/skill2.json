@@ -1,0 +1,9 @@
+{
+  "id": "skill2",
+  "amount": 8,
+  "name": "技2",
+  "kind": "general",
+  "category": "skill2",
+  "targeting": "none",
+  "text": "触发英雄技能2"
+}

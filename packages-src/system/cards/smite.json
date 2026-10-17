@@ -1,0 +1,16 @@
+{
+  "id": "smite",
+  "amount": 2,
+  "name": "惩戒",
+  "type": "BSC",
+  "targeting": "enemy",
+  "steps": [
+    {
+      "fn": "damage",
+      "ref": "target",
+      "amount": 3,
+      "mode": "MAG"
+    }
+  ],
+  "text": "MAG3"
+}
