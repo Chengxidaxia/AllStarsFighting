@@ -12,7 +12,10 @@ window.__ALSF_WS_URL = '';
  *   __ALSF_MODE = ''       → 走原来的 WS 服务端（默认）
  *   __ALSF_MODE = 'host'   → 本机浏览器当房主（跑对局引擎）
  *   __ALSF_MODE = 'guest'  → 加入房主的房间
- * 数据包从 Supabase Storage 桶加载；没配 URL/KEY 时回退本地 web/pack/catalog.json。
+ * 数据包来源：配了 Supabase URL/KEY → 扫 Storage 桶 datapacks 根目录；
+ * 否则（本地运行）→ 读同源 datapacks/ 目录（服务端 / _static.mjs 提供列表接口）。
+ * 桶/目录下每个条目 = 一个数据包：文件夹（内部放详细）或 zip（.zip/.pack/.alsfpack）；
+ * zip 下载后在内存里解包，不落硬盘。
  */
 window.__ALSF_MODE = '';
 window.__ALSF_TRANSPORT = ''; // 'local' 强制 BroadcastChannel（本地调试/无 Supabase 时）
@@ -25,8 +28,8 @@ window.__ALSF_TRANSPORT = ''; // 'local' 强制 BroadcastChannel（本地调试/
 window.__ALSF_AUTH = '';
 window.__SUPABASE_URL = '';
 window.__SUPABASE_ANON_KEY = '';
-window.__ALSF_PACK_BUCKET = 'datapack';
+window.__ALSF_PACK_BUCKET = 'datapacks';
 /*
- * 桶根目录扫描：catalog.json（合并目录）/ 文件夹包 / .pack（zip 改名，避免 IDM 拦截 .zip）
- * 注意：IDM 会拦截 .zip 下载，桶里请用文件夹或 .pack/.alsfpack，不要用 .zip。
+ * 桶根目录扫描：文件夹包 / .zip / .pack / .alsfpack（zip 在内存解包）。
+ * 注意：IDM 会拦截 .zip 下载，桶里推荐用文件夹或 .pack/.alsfpack。
  */

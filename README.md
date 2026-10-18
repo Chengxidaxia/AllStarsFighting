@@ -14,16 +14,16 @@
 ## 运行方式（方案 1 · 房主权威）
 
 - 没有常驻服务端：**打开页面的人就是房主**，对局引擎跑在房主浏览器里；
-- 房主进房间后点「复制邀请链接」发给别人，好友打开链接（`?mode=guest&room=xxx`）加入；
+- 房主先进游戏大厅，点「创建并进入」才创建房间与广播频道，再「复制邀请链接」发给别人，好友打开链接（`?mode=guest&room=xxx`）加入；
 - 玩家动作经 **Supabase Realtime Broadcast** 转发；访客本地重放动作做反作弊校验；
-- 数据包从 **Supabase Storage 桶**（`datapack`）根目录扫描加载，失败回退内置 `pack/catalog.json`。
+- 数据包从 **Supabase Storage 桶 `datapacks`** 根目录扫描加载（文件夹包 / `.zip` / `.pack` / `.alsfpack`，zip 内存解包）；**无 catalog.json 回退**（该机制已废除）。
 
 ## 配置（js/config.local.js）
 
 | 键 | 说明 |
 | --- | --- |
 | `__SUPABASE_URL` / `__SUPABASE_ANON_KEY` | Supabase 项目地址与 **publishable（anon）key**——公开可露，切勿放 service_role |
-| `__ALSF_PACK_BUCKET` | 数据包存储桶名（根目录扫描：每个文件夹=一个包，也识别 `.pack`/`.alsfpack` zip） |
+| `__ALSF_PACK_BUCKET` | 数据包存储桶名（默认 `datapacks`；根目录扫描：每个文件夹=一个包，也识别 `.zip`/`.pack`/`.alsfpack` zip） |
 | `__ALSF_MODE` | 部署版固定 `host`（房主权威）；`?mode=ws` 可临时切回 WS 服务端模式 |
 | `__ALSF_TRANSPORT` | 留空=自动（Supabase Realtime，失败回退 BroadcastChannel）；`local` 强制本地 |
 | `__ALSF_AUTH` | 登录门禁开关：`'on'` 开启（本分支默认已设 `'on'`），`?auth=off` 可临时关闭 |
@@ -36,8 +36,13 @@ Supabase 若开启了「Confirm email」，新注册用户要先到收件箱点�
 ```bat
 cd alsf
 npm run build:web
-xcopy /E /Y /I web\index.html web\css web\js web\engine\pack.js web\pack <部署目录>
+node scripts\_stage-web.mjs
+git commit -m "web: ..." 
+git push -f origin web
 ```
 
-（`js/config.local.js` 由 `scripts/gen-config.ts` 从仓库上一级 `token.env` 生成，
-只写 publishable key；`__ALSF_MODE` 需手工改为 `"host"`。）
+`scripts/_stage-web.mjs` 会：构建 → 切 `web` 分支 → 从 `main` 拷最新静态文件 →
+给 `js/config.local.js` 补 `__ALSF_MODE="host"` / `__ALSF_AUTH="on"` → 精确暂存（白名单 gitignore）。
+
+> `js/config.local.js` 由 `scripts/gen-config.ts` 从仓库上一级 `token.env` 生成（只写 publishable key）；
+> 桶匿名 `list` 需先在 Supabase 执行 RLS：`create policy "datapacks public read" on storage.objects for select using (bucket_id = 'datapacks');`

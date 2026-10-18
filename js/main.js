@@ -122,6 +122,7 @@ net.on(MSG.WELCOME, (d) => {
   el.joinStatus.textContent = '';
   el.lobbyMe.textContent = `${net.name} · ${d.id}`;
   if (Array.isArray(d.maps)) { S.mapList = d.maps; populateMapSelect(); }
+  prefillCreateForm();
   if (S.room !== null && S.room.roomId !== undefined) {
     // 重连回原房
     send(MSG.JOIN_ROOM, { roomId: S.room.roomId });
@@ -325,6 +326,16 @@ function updateModeHint() {
 }
 el.roomMode.addEventListener('change', updateModeHint);
 updateModeHint();
+
+/** URL 参数预填建房表单（?game=1v1&map=plaza；房主模式不再自动建房，只预填）。 */
+function prefillCreateForm() {
+  const p = new URLSearchParams(location.search);
+  const g = p.get('game');
+  if (g !== null && [...el.roomMode.options].some((o) => o.value === g)) el.roomMode.value = g;
+  const m = p.get('map');
+  if (m !== null && el.roomMap !== null && [...el.roomMap.options].some((o) => o.value === m)) el.roomMap.value = m;
+  updateModeHint();
+}
 
 el.btnCreate.addEventListener('click', () => {
   net.send(MSG.CREATE_ROOM, {
